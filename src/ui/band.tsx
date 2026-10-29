@@ -12,7 +12,7 @@ import { chipSvg, justPinged, mascotSvg, wordOf } from './art'
 import { cardSvg } from './card'
 import {
   BG, CELLS, EMPTY, HUE, INK, KW_BUTTON_COLORS, KW_COLORS, KW_LONG_AT, KW_LONG_AT_TERMINAL, LOW_AT, LOW_COLOR, MASCOT_SIZE, MUTED, TEXT,
-  TIGHT_CELLS, bandPx, kindOf,
+  CARD_MAX_PX, TIGHT_CELLS, bandPx, kindOf,
 } from './theme'
 
 // A band above the prompt in a purple cyberpunk look: dark violet surface, pale
@@ -269,11 +269,11 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   cardWasOpen = open
   let card = null
   if (open && Svg) {
-    const px = bandPx(columns)
+    const px = Math.min(bandPx(columns), CARD_MAX_PX)
     const c = cardSvg(view, kind, Math.floor(px / options.cardScale), kwCard(facts, now), intro)
     card = (
       <Box key="card" flexDirection="row">
-        <Svg source={c.source} alt={c.alt} width={px} height={Math.round((c.h * px) / c.w)} isInteractive={kind !== 'tight'} />
+        <Svg source={c.source} alt={c.alt} width={px} isInteractive={kind !== 'tight'} />
       </Box>
     )
   }

@@ -50,7 +50,7 @@ Set them in the plugin's configuration screen or under `pluginConfigs` in your s
 
 - `language`: `auto` (default), `en` or `it`. `auto` follows Claude Code's `language` setting, then the system locale, then English.
 - `compactBelow`: columns under which the wide row drops the word "left" and folds keepwarm into its button. Default 110, from 40 to 400.
-- `cardScale`: how much larger the cache card's text reads. Default 1.3, from 0.5 to 3.
+- `cardScale`: how much larger the cache card's text reads. Default 1, from 0.5 to 3. Above 1 the wide card gets cramped on a desktop-width band.
 - `keepwarmWindow`: what the button and a bare `/keepwarm` arm, as hours and minutes. Default `6h`, from 1m to 48h.
 - `coldGuard`: default on. Off lets a message sent on a cold cache through without holding it back.
 
@@ -78,7 +78,7 @@ Rispondi `y` per aggiungere il marketplace e scegli lo scope. A mano: clona il r
 
 Comandi: `/keepwarm` (finestra di default, 6h), `/keepwarm 90m`, `/keepwarm always`, `/keepwarm status`, `/keepwarm off`, `/glitchband` (stima della cache, costo a freddo, scritture a freddo della sessione), `/glitchband guard warn|refuse`.
 
-Opzioni: `language` (`auto`, `en`, `it`; `auto` segue la lingua impostata in Claude Code, poi quella del sistema), `compactBelow` (colonne sotto cui la riga larga diventa compatta, default 110), `cardScale` (scala del testo della scheda, default 1.3), `keepwarmWindow` (durata armata dal pulsante e da `/keepwarm` senza argomenti, default `6h`), `coldGuard` (default attivo: se spento il messaggio a freddo passa senza essere fermato). Un valore fuori range o del tipo sbagliato torna al default.
+Opzioni: `language` (`auto`, `en`, `it`; `auto` segue la lingua impostata in Claude Code, poi quella del sistema), `compactBelow` (colonne sotto cui la riga larga diventa compatta, default 110), `cardScale` (scala del testo della scheda, default 1), `keepwarmWindow` (durata armata dal pulsante e da `/keepwarm` senza argomenti, default `6h`), `coldGuard` (default attivo: se spento il messaggio a freddo passa senza essere fermato). Un valore fuori range o del tipo sbagliato torna al default.
 
 Costo dei ping: ogni ping è una richiesta al modello sulla trascrizione, dopo 50 minuti di inattività dentro la finestra armata. Costa una lettura di cache più una risposta di poche parole, stimata con i prezzi di listino nel codice e sommata nella scheda. Si ferma da solo se la lettura è zero o se la scrittura supera il 10% della lettura. Sugli abbonamenti i dollari sono un metro, non il conto.
 

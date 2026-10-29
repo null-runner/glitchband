@@ -50,7 +50,7 @@ export const KW_LONG_AT_TERMINAL = 125
 /** The default of the compactBelow option: under this a wide row drops "left", tightens its gaps and folds keepwarm into its button (the desktop font runs wider than the cell estimate). */
 export const DEFAULT_COMPACT_BELOW = 110
 /** The default of the cardScale option: the card is laid out this much narrower and drawn back at full width, so its text reads larger. */
-export const DEFAULT_CARD_SCALE = 1.3
+export const DEFAULT_CARD_SCALE = 1
 /** How often the band redraws, so the countdown and the warm-to-cold flip stay current. */
 export const TICK_MS = 30_000
 
@@ -87,3 +87,6 @@ export const CARD_TOP = 6
 export const KW_H = 62
 export const KW_H_ROWS = 78
 export const KW_NOTE_H = 16
+
+/** The desktop prompt column tops out near 960 px whatever the column count says, so a wider card is only shrunk with its text (ponytail: measured on one screen; a real slot width from the engine would replace it). */
+export const CARD_MAX_PX = 1000

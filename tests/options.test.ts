@@ -43,7 +43,7 @@ test('the defaults keep the behaviour the band has always had', () => {
   expect(readOptions({})).toEqual({
     language: 'auto',
     compactBelow: 110,
-    cardScale: 1.3,
+    cardScale: 1,
     keepwarmWindow: { text: '6h', ms: 6 * HOUR },
     coldGuard: true,
   })
@@ -101,8 +101,8 @@ test('by default 100 columns is compact', async ($, on) => {
 test('cardScale sets how much narrower the card is laid out', { options: { cardScale: 2 } }, async ($, on) => {
   await resumedCold($, on)
   const band = await $.ui.mount({ plugin: 'glitchband', surface: 'desktop', component: 'AbovePrompt', props: { ...PROPS, bodyColumns: 80 } })
-  // 80 columns is a 1020 px band; at scale 2 the card is laid out 510 px wide.
-  expect(JSON.stringify(await band.find({ key: 'card' }))).toContain('viewBox=\\"0 0 510 ')
+  // 80 columns is a 1020 px band, capped at 1000 px; at scale 2 the card is laid out 500 px wide.
+  expect(JSON.stringify(await band.find({ key: 'card' }))).toContain('viewBox=\\"0 0 500 ')
   await band.unmount()
 })
 

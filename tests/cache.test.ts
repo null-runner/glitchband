@@ -58,8 +58,10 @@ test('a cold cache opens the card with the re-cache price, and Hide folds it to 
   const card = await band.find({ key: 'card' })
   expect(card).toBeDefined()
   expect(JSON.stringify(card)).toContain('Cache cold. Idle 3d 9h. Next message re-caches 770k tokens.')
-  // Drawn at the band's width: 80 columns is a 1020 px band (laid out narrower, so its text reads larger).
-  expect(JSON.stringify(card)).toContain('"width":1020')
+  // 80 columns is a 1020 px band; the card stops at the desktop column's 1000 px.
+  expect(JSON.stringify(card)).toContain('"width":1000')
+  // No fixed height: the surface keeps the drawing's own ratio, so a narrower slot leaves no empty bands.
+  expect(JSON.stringify(card)).not.toContain('"height":')
 
   await band.press({ key: 'cache-fold' })
   expect(await band.find({ key: 'card' })).toBeUndefined()

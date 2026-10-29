@@ -43,7 +43,7 @@
       "type": "number",
       "title": "Card text scale",
       "description": "How much larger the cache card's text reads; 1 is the plain layout",
-      "default": 1.3,
+      "default": 1,
       "min": 0.5,
       "max": 3
     },
