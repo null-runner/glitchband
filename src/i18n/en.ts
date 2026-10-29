@@ -19,8 +19,8 @@ export const en = {
   'window.sevenDay': '7D',
   'window.fiveHour': '5H',
   'window.spend': 'SPEND',
-  'mascot.bobbing': 'Mascot, bobbing',
-  'mascot.frozen': 'Mascot, frozen',
+  'mascot.online': 'Netrunner online',
+  'mascot.frozen': 'Netrunner, frozen',
   'chip.warm': 'WARM',
   'chip.cold': 'COLD',
 

@@ -8,19 +8,19 @@ import { t } from '../i18n'
 import type { Options } from '../options'
 import type { Window } from '../../types'
 import { readWindows, windowParts } from '../usage/usage'
-import { chipSvg, roboSvg, wordOf } from './art'
+import { chipSvg, justPinged, mascotSvg, wordOf } from './art'
 import { cardSvg } from './card'
 import {
-  BG, CELLS, EMPTY, HUE, INK, KW_BUTTON_COLORS, KW_COLORS, KW_LONG_AT, KW_LONG_AT_TERMINAL, LOW_AT, MUTED, ROBO_SIZE, TEXT,
+  BG, CELLS, EMPTY, HUE, INK, KW_BUTTON_COLORS, KW_COLORS, KW_LONG_AT, KW_LONG_AT_TERMINAL, LOW_AT, LOW_COLOR, MASCOT_SIZE, MUTED, TEXT,
   TIGHT_CELLS, bandPx, kindOf,
 } from './theme'
 
-// A band above the prompt in a warm dark look: card surface, cream text,
-// dot-matrix bars. Shows how much of each usage window is LEFT, 7-day first, then
-// 5-hour; 7D is orange, 5H is yellow; a window under 15% adds a bold LOW.
+// A band above the prompt in a purple cyberpunk look: dark violet surface, pale
+// lavender text, dot-matrix bars. Shows how much of each usage window is LEFT, 7-day
+// first, then 5-hour; 7D is violet, 5H is magenta; a window under 15% adds a bold red LOW.
 //
-// After the first reply it also shows the prompt cache: WARM (red, mascot bobbing)
-// for an hour after the last request, then COLD (blue, mascot frozen) with what the
+// After the first reply it also shows the prompt cache: WARM (neon magenta, netrunner
+// online) for an hour after the last request, then COLD (ice cyan, netrunner frozen) with what the
 // next message costs to re-cache. Hide / Show folds the card; warm starts folded,
 // cold starts open, and a choice holds until the cache flips. Zero token cost:
 // it reads the engine's own figures and draws.
@@ -34,6 +34,9 @@ async function toggleKeepwarm($: EngineInterface, s: State): Promise<void> {
   const armed = isArmed(s, await $.clock.now())
   await (armed ? disarmKeepwarm($, s) : armKeepwarm($, s))
 }
+
+/** Whether the last draw had the card open, to tell an opening from a redraw. */
+let cardWasOpen = false
 
 type RenderHook = MatchedHook<'ui.render', { readonly component: 'AbovePrompt' }>
 type RenderArgs = Parameters<RenderHook>
@@ -78,7 +81,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
         <Text color={p.col}>{p.d.on}</Text>
         <Text color={EMPTY}>{p.d.off}</Text>
         <Text color={p.col} bold> {p.left}%{compact ? '' : ` ${t('band.left')}`}</Text>
-        {p.left < LOW_AT ? <Text color={TEXT} bold>{` ${t('band.low')}`}</Text> : null}
+        {p.left < LOW_AT ? <Text color={LOW_COLOR} bold>{` ${t('band.low')}`}</Text> : null}
         {p.reset ? <Text color={MUTED}> · {p.reset}</Text> : null}
       </Box>
     )
@@ -95,7 +98,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
         </Box>
         <Box flexDirection="row">
           <Text color={p.col} bold>{`${p.left}% ${t('band.left')}`}</Text>
-          {p.left < LOW_AT ? <Text color={TEXT} bold>{` ${t('band.low')}`}</Text> : null}
+          {p.left < LOW_AT ? <Text color={LOW_COLOR} bold>{` ${t('band.low')}`}</Text> : null}
         </Box>
         {p.reset ? <Text color={MUTED}>{t('band.resets', { time: p.reset })}</Text> : null}
       </Box>
@@ -179,11 +182,11 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
 
   const badge = Svg
     ? [
-        <Svg key="robo" source={roboSvg(mode)} alt={t(cold ? 'mascot.frozen' : 'mascot.bobbing')} width={ROBO_SIZE} height={ROBO_SIZE} isInteractive />,
+        <Svg key="mascot" source={mascotSvg(mode, justPinged(facts, now))} alt={t(cold ? 'mascot.frozen' : 'mascot.online')} width={MASCOT_SIZE} height={MASCOT_SIZE} isInteractive />,
         <Text key="gap"> </Text>,
         (() => {
           const c = chipSvg(mode)
-          return <Svg key="chip" source={c.source} alt={wordOf(mode)} width={c.w} height={c.h} />
+          return <Svg key="chip" source={c.source} alt={wordOf(mode)} width={c.w} height={c.h} isInteractive />
         })(),
       ]
     : [<Text key="chip" backgroundColor={hue} color={INK} bold>{` ${wordOf(mode)} `}</Text>]
@@ -261,10 +264,13 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
     ]
   }
 
+  // The card's bars fill in once, on the draw that opens it.
+  const intro = open && !cardWasOpen
+  cardWasOpen = open
   let card = null
   if (open && Svg) {
     const px = bandPx(columns)
-    const c = cardSvg(view, kind, Math.floor(px / options.cardScale), kwCard(facts, now))
+    const c = cardSvg(view, kind, Math.floor(px / options.cardScale), kwCard(facts, now), intro)
     card = (
       <Box key="card" flexDirection="row">
         <Svg source={c.source} alt={c.alt} width={px} height={Math.round((c.h * px) / c.w)} isInteractive={kind !== 'tight'} />

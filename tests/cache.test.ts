@@ -32,7 +32,7 @@ test('a warm cache shows the mascot, the WARM chip and the minutes left, folded'
   const band = await $.ui.mount({ plugin: 'glitchband', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
   // Drawings keep no key in the kit, so they are found by what they say.
   const alts = (await band.findAll({ type: 'Svg' })).map(s => s.props.alt)
-  expect(alts).toEqual(['Mascot, bobbing', 'WARM'])
+  expect(alts).toEqual(['Netrunner online', 'WARM'])
   expect(await band.find({ text: ' 42m' })).toBeDefined()
   expect(await band.find({ text: / left/ })).toBeUndefined()
   expect(await band.find({ key: 'card' })).toBeUndefined()

@@ -21,8 +21,8 @@ export const it: Record<Key, string> = {
   'window.sevenDay': '7D',
   'window.fiveHour': '5H',
   'window.spend': 'SPESA',
-  'mascot.bobbing': 'Mascotte che ondeggia',
-  'mascot.frozen': 'Mascotte congelata',
+  'mascot.online': 'Netrunner online',
+  'mascot.frozen': 'Netrunner congelato',
   'chip.warm': 'CALDA',
   'chip.cold': 'FREDDA',
 
