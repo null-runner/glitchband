@@ -2,6 +2,8 @@
 
 A band above the prompt for Claude Code. It shows how much of your 7-day and 5-hour usage is left, whether the prompt cache is WARM or COLD, what the next message costs, and it can hold the cache warm with a ping while you are away.
 
+![The cache card, warm, in the purple cyberpunk look](assets/preview/card-warm.png)
+
 ## What you see
 
 - Usage: one dot bar per window (7D, 5H) with the percent left and the time to reset. A window under 15% adds LOW.
