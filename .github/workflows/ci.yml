@@ -1,0 +1,24 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Claude Code
+        run: npm i -g @anthropic-ai/claude-code
+      - name: Validate the plugin
+        run: claude plugin validate .
+      - name: Run the plugin tests
+        run: claude plugin test .
+      - name: Type-check
+        # The API declarations are written by Claude Code when it loads a mod in a session, so a bare CI run has none.
+        run: |
+          if [ -f .claude-plugin/types/tsconfig.json ]; then
+            npx -y -p typescript@5.6.3 tsc -p .claude-plugin/types/tsconfig.json
+          else
+            echo "No API declarations on this runner: type-check skipped (run it locally)."
+          fi
