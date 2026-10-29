@@ -185,23 +185,20 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   const mine = mineModel(view)
   const stored = await readFold($)
   // Folding needs the card, and the card is a drawing: the terminal stays folded.
-  // The card must fit the rows the band may take, or the engine scrolls it and leaves blank rows: try the full
-  // strip, then the one-line strip, else no card (and no Show button, which could only open nothing).
+  // The card must fit the rows the band may take, or the engine scrolls it: the desktop measured a hair over its
+  // window with the full strip, so the card always takes the one-line strip; no fit, no card (and no Show button).
   const px = Math.min(bandPx(columns), CARD_MAX_PX)
   const budget = (e.props.maxRows - HEAD_ROWS[kind]) * ROW_PX
   const kwText = kwCard(facts, now)
   const drawCard = (intro: boolean) => {
-    for (const slim of [false, true]) {
-      const c = cardSvg(view, kind, Math.floor(px / options.cardScale), kwText, intro, slim)
-      const h = Math.round((c.h * px) / c.w)
-      if (h <= budget) return { ...c, h }
-    }
-    return null
+    const c = cardSvg(view, kind, Math.floor(px / options.cardScale), kwText, intro, true)
+    const h = Math.round((c.h * px) / c.w)
+    return h <= budget ? { ...c, h } : null
   }
   const fits = Svg !== null && drawCard(false) !== null
   const open = fits && (stored && stored.mode === mode ? stored.open : cold)
   // Open, the card follows at once: the row keeps less room under it.
-  const padB = open ? 'sm' : 'md'
+  const padB = open ? 'xs' : 'md'
   const toggle = () => toggleFold($, mode)
 
   const badge = Svg
@@ -252,7 +249,8 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
     px += Math.max(...[t('band.show'), t('band.hide')].map(textPx)) + BTN_CHROME + 2 * CELL_PX
     return px + textPx(`${t('kw.nameShort')} ${t('kw.select.always')}`) + SELECT_CHROME + CELL_PX + SAFETY_PX
   }
-  const room = columns * CELL_PX - 2 * PAD_PX
+  // The column count overstates the desktop slot; the dark panel measured ~950 px, so the row budgets from the same cap as the card.
+  const room = Math.min(columns * CELL_PX, CARD_MAX_PX) - 2 * PAD_PX
   const level = !Svg || !isWide ? 0 : [0, 1, 2].find(l => rowPx(l) <= room) ?? 3
 
   let rows

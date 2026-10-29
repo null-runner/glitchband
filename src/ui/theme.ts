@@ -128,4 +128,4 @@ export const ROW_PX = 25
 export const HEAD_ROWS: Record<Kind, number> = { wide: 2, stacked: 6, tight: 8 }
 
 /** The desktop prompt column tops out near 960 px whatever the column count says, so a wider card is only shrunk with its text (ponytail: measured on one screen; a real slot width from the engine would replace it). */
-export const CARD_MAX_PX = 1000
+export const CARD_MAX_PX = 950

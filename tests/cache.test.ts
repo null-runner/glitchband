@@ -59,12 +59,12 @@ test('a cold cache opens the card with the re-cache price, and Hide folds it to 
   const card = await band.find({ key: 'card' })
   expect(card).toBeDefined()
   expect(JSON.stringify(card)).toContain('Cache cold. Idle 3d 9h. Next message re-caches 770k tokens.')
-  // 80 columns is a 1020 px band; the card stops at the desktop column's 1000 px.
-  expect(JSON.stringify(card)).toContain('"width":1000')
+  // 80 columns is a 1020 px band; the card stops at the desktop panel's 950 px.
+  expect(JSON.stringify(card)).toContain('"width":950')
   // Width and height go together, in the drawing's own ratio, so the rows it takes are known.
   const svg = (await band.findAll({ type: 'Svg' })).find(s => String(s.props.alt).startsWith('Cache cold'))
   const [vw, vh] = String(svg?.props.source).match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/)?.slice(1).map(Number) ?? []
-  expect(svg?.props.height).toBe(Math.round(((vh ?? 0) * 1000) / (vw ?? 1)))
+  expect(svg?.props.height).toBe(Math.round(((vh ?? 0) * 950) / (vw ?? 1)))
 
   await band.press({ key: 'cache-fold' })
   expect(await band.find({ key: 'card' })).toBeUndefined()
@@ -141,7 +141,7 @@ const rowsOf = async (band: { findAll: (q: { type: 'Svg' }) => Promise<Array<{ p
   return { card, rows: card ? HEAD_ROWS.wide + Math.ceil(Number(card.props.height) / ROW_PX) : 0 }
 }
 
-test('an open card stays inside maxRows: full strip, then the one-line strip, then no card and no Show button', async ($, on) => {
+test('an open card stays inside maxRows with the one-line strip, else no card and no Show button', async ($, on) => {
   mock.store(on)
   answerSession(on)
   mock.clock(on, { now: NOW })
@@ -157,15 +157,16 @@ test('an open card stays inside maxRows: full strip, then the one-line strip, th
   const { card: c12, rows: r12 } = await rowsOf(full)
   expect(c12).toBeDefined()
   expect(r12).toBeLessThanOrEqual(12)
-  expect(Number(c12?.props.height)).toBe(225)
-  expect(String(c12?.props.source)).toContain('width="1000" height="225"')
+  // Always the one-line strip: the full one ran a hair past the desktop's window and scrolled.
+  expect(Number(c12?.props.height)).toBe(200)
+  expect(String(c12?.props.source)).toContain('width="950" height="200"')
   await full.unmount()
 
-  const slim = await draw(10)
-  const { card: c11, rows: r10 } = await rowsOf(slim)
+  const ten = await draw(10)
+  const { card: c10, rows: r10 } = await rowsOf(ten)
   expect(r10).toBeLessThanOrEqual(10)
-  expect(Number(c11?.props.height)).toBeLessThan(Number(c12?.props.height))
-  await slim.unmount()
+  expect(Number(c10?.props.height)).toBe(200)
+  await ten.unmount()
 
   const none = await draw(5)
   expect((await rowsOf(none)).card).toBeUndefined()
