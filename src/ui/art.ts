@@ -203,8 +203,10 @@ export const mascotSvg = (mode: Mode, glitch = false): string =>
  * The doc carries animations, so its Svg needs isInteractive.
  */
 export const barSvg = (left: number, color: string, w = BAR_W): string => {
-  const fill = left > 0 ? Math.max(BAR_H, (w * Math.min(100, left)) / 100) : 0
   const r = BAR_H / 2
+  // Whole pixels, so the fill's end isn't a blended column; short of 100% the empty part is at least the
+  // rounded cap, since a 1-2 px sliver of track there read as a dark line, not as what's left.
+  const fill = left > 0 ? Math.max(BAR_H, Math.min(left < 100 ? w - r : w, Math.round((w * left) / 100))) : 0
   const drift = Math.min(fill * 0.3, 26)
   const css =
     `.b-fill{transform-box:fill-box;transform-origin:0 50%;animation:b-grow ${BAR_GROW_MS}ms cubic-bezier(.2,.8,.2,1) both}` +
@@ -220,9 +222,11 @@ export const barSvg = (left: number, color: string, w = BAR_W): string => {
   const body =
     // Clip to the whole track, not a pill ending at the fill: a rounded end over the track let its grey
     // show through at the corners, a seam under the end of the fill.
-    `<defs><clipPath id="gb-bar"><rect width="${w}" height="${BAR_H}" rx="${r}"/></clipPath>` +
+    // The shine and the dots are clipped to the fill too: on the empty track the shine lit it up and left
+    // the unlit strip right after the fill as a dark line.
+    `<defs><clipPath id="gb-bar"><rect width="${w}" height="${BAR_H}" rx="${r}"/></clipPath><clipPath id="gb-fill"><rect width="${fill}" height="${BAR_H}"/></clipPath>` +
     `<linearGradient id="gb-shine"><stop offset="0" stop-color="${GLINT}" stop-opacity="0"/><stop offset=".5" stop-color="${GLINT}" stop-opacity="${BAR_SHINE_OPACITY}"/><stop offset="1" stop-color="${GLINT}" stop-opacity="0"/></linearGradient></defs>` +
     `<rect width="${w}" height="${BAR_H}" rx="${r}" fill="${EMPTY}"/>` +
-    (fill > 0 ? `<g clip-path="url(#gb-bar)"><rect class="b-fill" width="${fill}" height="${BAR_H}" fill="${color}"/><rect class="b-shine" x="0" width="40" height="${BAR_H}" fill="url(#gb-shine)"/>${dots}</g>` : '')
+    (fill > 0 ? `<g clip-path="url(#gb-bar)"><rect class="b-fill" width="${fill}" height="${BAR_H}" fill="${color}"/><g clip-path="url(#gb-fill)"><rect class="b-shine" x="0" width="40" height="${BAR_H}" fill="url(#gb-shine)"/>${dots}</g></g>` : '')
   return svgDoc(w, BAR_H, body, false, css)
 }

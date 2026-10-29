@@ -110,8 +110,8 @@ export const KW_NOTE_H = 16
 export const KW_H_SLIM = 30
 
 // ---------- Width: what a wide row is estimated to take, in pixels ----------
-/** A character of the desktop's text in the band, and the cell the engine counts (12 px, the code font's advance). */
-export const CHAR_PX = 11
+/** A character of the desktop's text in the band (a real screenshot measured about 8.4 px; 11 dropped USAGE from a row with room to spare), and the cell the engine counts (12 px, the code font's advance). */
+export const CHAR_PX = 9
 export const CELL_PX = 12
 /** What a native button adds around its label, and the band's side padding (the 'md' step, a guess); both erred on the generous side after a real screenshot cut the select off. */
 export const BTN_CHROME = 64

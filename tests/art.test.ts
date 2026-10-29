@@ -51,7 +51,11 @@ test('warm and cold are told apart by their pixels: no coral on the cold figure,
 test('a usage bar draws the share left on a track, grows once, and its shine stays faint', () => {
   const bar = barSvg(40, SEVEN_DAY)
   expect(bar).toContain(`<rect width="${BAR_W}" height="${BAR_H}" rx="${BAR_H / 2}" fill="${EMPTY}"/>`)
-  expect(bar).toContain(`class="b-fill" width="${(BAR_W * 40) / 100}"`)
+  expect(bar).toContain(`class="b-fill" width="${Math.round((BAR_W * 40) / 100)}"`)
+  // Short of 100%, what's left is at least the rounded cap, never a 1-2 px dark sliver.
+  expect(barSvg(98, SEVEN_DAY)).toContain(`class="b-fill" width="${BAR_W - BAR_H / 2}"`)
+  // The shine and the dots stay on the fill, off the empty track.
+  expect(bar).toContain(`<g clip-path="url(#gb-fill)"><rect class="b-shine"`)
   expect(bar).toContain(`fill="${SEVEN_DAY}"`)
   expect(bar).toContain(`animation:b-grow ${BAR_GROW_MS}ms`)
   expect(bar).toContain('class="b-shine"')
