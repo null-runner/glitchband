@@ -154,7 +154,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
       />
     </Box>
   )
-  const kwRowOf = (padB: 'sm' | 'md') => (
+  const kwRowOf = (padB: 'xs' | 'md') => (
     <Box key="kwrow" flexDirection="row" paddingX="md" paddingTop="md" paddingBottom={padB} alignItems="center">
       {kwIndicator}
       {grow}

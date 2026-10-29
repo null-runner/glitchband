@@ -115,8 +115,10 @@ export const MASCOT_PIX = [
   '.HHHHHHHHHHHHHH.',
 ]
 const GRID = 16
-/** Where the warm netrunner's sparks start (they rise two pixels and fade), each a beat after the last. */
-const SPARKS: Array<[number, number]> = [[3, 2], [8, 1], [12, 2]]
+/** Where the warm netrunner's heat sparks start (they rise four pixels and fade), each a beat after the last. */
+const SPARKS: Array<[number, number]> = [[2, 3], [6, 1], [9, 2], [13, 3]]
+/** A spark's side, in grid pixels: one and a half, so the heat reads at band size. */
+const SPARK_PX = 1.5
 /** The icicles under the chin: x of the base, the base's width and their length, in pixels of the grid. */
 const ICICLES: Array<[number, number, number]> = [[5.3, 1.3, 2.7], [9.2, 1.1, 2.1]]
 
@@ -135,14 +137,14 @@ const pixels = (u: number, chars: string, fill: string): string => {
 /** The mascot's animations for a box `size` wide: the warm visor pulse, scan and sparks; the cold sheen across the ice; the ping glitch. */
 export const mascotCss = (size: number): string => {
   const u = size / GRID
-  const glow = (r: number) => `filter:drop-shadow(0 0 ${(r * u).toFixed(2)}px ${HUE.warm})`
+  const glow = (r: number) => `filter:drop-shadow(0 0 ${(r * u).toFixed(2)}px ${MASCOT.warm.visor})`
   return (
     `.m-visor{animation:m-pulse 2.4s ease-in-out infinite;${glow(0.6)}}` +
     `@keyframes m-pulse{0%,100%{opacity:.8;${glow(0.6)}}50%{opacity:1;${glow(1.6)}}}` +
     `.m-scan{opacity:0;animation:m-scan 3s linear infinite}` +
     `@keyframes m-scan{0%{transform:translateX(0);opacity:0}8%{opacity:.7}92%{opacity:.7}100%{transform:translateX(${(9 * u).toFixed(2)}px);opacity:0}}` +
-    '.m-sp{opacity:0;animation:m-spark 1.6s ease-out infinite}.m-sp2{animation-delay:.55s}.m-sp3{animation-delay:1.1s}' +
-    `@keyframes m-spark{0%{opacity:0;transform:translateY(0)}20%{opacity:1}100%{opacity:0;transform:translateY(${(-2.2 * u).toFixed(2)}px)}}` +
+    '.m-sp{opacity:0;animation:m-spark 1.4s ease-out infinite}.m-sp2{animation-delay:.35s}.m-sp3{animation-delay:.7s}.m-sp4{animation-delay:1.05s}' +
+    `@keyframes m-spark{0%{opacity:0;transform:translateY(0)}15%{opacity:1}100%{opacity:0;transform:translateY(${(-4 * u).toFixed(2)}px)}}` +
     '.m-sheen{opacity:0;animation:m-sheen 5s ease-in-out infinite}' +
     `@keyframes m-sheen{0%,62%{opacity:0;transform:translateX(${(-6 * u).toFixed(2)}px) skewX(-20deg)}72%{opacity:.55}88%{opacity:.55}100%{opacity:0;transform:translateX(${(18 * u).toFixed(2)}px) skewX(-20deg)}}` +
     '.m-glitch{animation:m-jit .12s steps(1,end) 3}' +
@@ -170,7 +172,7 @@ export const mascotShapes = (x: number, y: number, size: number, mode: Mode, gli
   if (warm) {
     s += `<g class="m-visor"><rect x="${3 * u}" y="${6 * u}" width="${10 * u}" height="${2 * u}" fill="${P.visor}"/></g>`
     s += `<rect class="m-scan" x="${3 * u}" y="${6 * u}" width="${u}" height="${2 * u}" fill="${GLINT}"/>`
-    SPARKS.forEach(([sx, sy], i) => (s += `<rect class="m-sp m-sp${i + 1}" x="${sx * u}" y="${sy * u}" width="${u}" height="${u}" fill="${SPARK}"/>`))
+    SPARKS.forEach(([sx, sy], i) => (s += `<rect class="m-sp m-sp${i + 1}" x="${sx * u}" y="${sy * u}" width="${SPARK_PX * u}" height="${SPARK_PX * u}" fill="${SPARK}"/>`))
   } else {
     const [bx, by, bw, bh] = [0.5 * u, 1.5 * u, 15 * u, 14 * u]
     s += `<rect x="${3 * u}" y="${6 * u}" width="${10 * u}" height="${2 * u}" fill="${P.visor}"/>`
@@ -216,7 +218,9 @@ export const barSvg = (left: number, color: string, w = BAR_W): string => {
     for (let i = 0; i < BAR_DOTS; i++)
       dots += `<circle class="b-dot" style="animation-delay:${(((i * 0.61) % BAR_DOT_S) + BAR_GROW_MS / 1000).toFixed(2)}s" cx="${((fill * (i + 0.5)) / BAR_DOTS).toFixed(1)}" cy="${[3.2, 5, 6.8, 4.1, 5.9][i % 5]}" r="${BAR_DOT_R}" fill="${GLINT}"/>`
   const body =
-    `<defs><clipPath id="gb-bar"><rect width="${fill}" height="${BAR_H}" rx="${r}"/></clipPath>` +
+    // Clip to the whole track, not a pill ending at the fill: a rounded end over the track let its grey
+    // show through at the corners, a seam under the end of the fill.
+    `<defs><clipPath id="gb-bar"><rect width="${w}" height="${BAR_H}" rx="${r}"/></clipPath>` +
     `<linearGradient id="gb-shine"><stop offset="0" stop-color="${GLINT}" stop-opacity="0"/><stop offset=".5" stop-color="${GLINT}" stop-opacity="${BAR_SHINE_OPACITY}"/><stop offset="1" stop-color="${GLINT}" stop-opacity="0"/></linearGradient></defs>` +
     `<rect width="${w}" height="${BAR_H}" rx="${r}" fill="${EMPTY}"/>` +
     (fill > 0 ? `<g clip-path="url(#gb-bar)"><rect class="b-fill" width="${fill}" height="${BAR_H}" fill="${color}"/><rect class="b-shine" x="0" width="40" height="${BAR_H}" fill="url(#gb-shine)"/>${dots}</g>` : '')

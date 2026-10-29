@@ -28,15 +28,15 @@ export const CHIP_EDGE: Record<Mode, string> = { warm: '#f0a98f', cold: '#c9e8f7
 /** The card's divider lines carry a thin touch of the accent in the middle. */
 export const NEON_LINE = SEVEN_DAY
 
-/** The netrunner's pixels, by state: hood, its rim, the shadow under the visor, the visor, the jack. A warm one glows coral; a cold one is all ice and grey. */
+/** The netrunner's pixels, by state: hood, its rim, the shadow under the visor, the visor, the jack. A warm one is an orange body with a red visor; a cold one is all ice and grey. */
 export const MASCOT = {
-  warm: { hood: '#3b3532', rim: '#d97757', shadow: '#141211', visor: '#f2a281', jack: '#d97757' },
+  warm: { hood: '#e07a3c', rim: '#9c4a1e', shadow: '#3a1a0c', visor: '#e5352b', jack: '#9c4a1e' },
   cold: { hood: '#3b4852', rim: '#8fb8cf', shadow: '#10161b', visor: '#27313a', jack: '#6e97ad' },
 } as const
 /** The sheet of ice over a cold netrunner: its body, its bright edge, the icicles. */
 export const ICE = { body: '#cfeaf8', edge: '#eaf7fd', icicle: '#dff2fb' } as const
 /** A spark of the warm netrunner. */
-export const SPARK = '#f6b394'
+export const SPARK = '#ffd27a'
 export const GLINT = '#ffffff'
 
 /** Colour of each usage window's bar. */
@@ -87,9 +87,9 @@ export const bandPx = (columns: number): number => (columns + 5) * 12
 
 // ---------- Card layout ----------
 /** The mascot beside the chip in the band's row, in pixels. */
-export const MASCOT_SIZE = 22
+export const MASCOT_SIZE = 26
 /** The mascot in the card's header. */
-export const CARD_MASCOT_SIZE = 22
+export const CARD_MASCOT_SIZE = 26
 /** A ping this recent makes the mascot glitch. */
 export const PING_GLITCH_WINDOW_MS = 60_000
 /** The card's scanline: its opacity (kept faint) and the seconds it takes to cross the card. */

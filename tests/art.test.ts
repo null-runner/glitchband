@@ -18,12 +18,13 @@ test('the mascot is a 16 by 16 pixel grid', () => {
   for (const row of MASCOT_PIX) expect(row).toHaveLength(16)
 })
 
-test('a warm mascot is lit: coral rim, pulsing visor, a scan and three sparks, and no ice', () => {
+test('a warm mascot is lit: orange body, red pulsing visor, a scan and four sparks, and no ice', () => {
   const warm = mascotSvg('warm')
   expect(warm).toContain('class="m-visor"')
   expect(warm).toContain('class="m-scan"')
-  expect(warm.match(/class="m-sp m-sp\d"/g)).toHaveLength(3)
-  expect(warm).toContain(`fill="${MASCOT.warm.rim}"`)
+  expect(warm.match(/class="m-sp m-sp\d"/g)).toHaveLength(4)
+  expect(warm).toContain(`fill="${MASCOT.warm.hood}"`)
+  expect(warm).toContain(`fill="${MASCOT.warm.visor}"`)
   expect(warm).not.toContain('gb-ice')
   expect(warm).not.toContain('class="m-glitch"')
 })
