@@ -1,12 +1,12 @@
 // The cache card: an SVG laid out for the band's width. Pure; nothing here touches the engine.
-// Layout from ribbon 1.0.0 (Jay E | RoboNuggets, MIT); the keepwarm strip and the neon look are glitchband's.
+// Layout from ribbon 1.0.0 (Jay E | RoboNuggets, MIT); the keepwarm strip and the look are glitchband's.
 
 import { MODELS, TTL_MIN, coldCost, costOf, tok, usd } from '../cache/cache'
 import type { CacheView } from '../cache/cache'
 import { t } from '../i18n'
 import { chipShapes, mascotCss, mascotShapes, svgDoc, wordOf } from './art'
 import {
-  CARD_BAR_MS, CARD_BAR_STAGGER_MS, CARD_BG, CARD_MASCOT_SIZE, CARD_SCAN_OPACITY, CARD_SCAN_S, CARD_TOP, EMPTY, GLINT, HUE, KW_H, KW_H_ROWS, KW_NOTE_H,
+  CARD_BAR_MS, CARD_BAR_STAGGER_MS, CARD_BG, CARD_MASCOT_SIZE, CARD_SCAN_OPACITY, CARD_SCAN_S, CARD_TOP, EMPTY, GLINT, HUE, KW_H, KW_H_ROWS, KW_H_SLIM, KW_NOTE_H,
   LINE, MUTED, NEON_LINE, TEXT,
 } from './theme'
 import type { Kind } from './theme'
@@ -36,8 +36,8 @@ export type KeepwarmCard = { state: string; note: string; pings: string; cold: s
 const esc = (str: string): string => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const clip = (str: string, n: number): string => (str.length > n ? `${str.slice(0, n - 1)}…` : str)
 
-/** `intro`: the card has just opened, so its cost bars fill in turn. */
-export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, intro = false): { source: string; w: number; h: number; alt: string } => {
+/** `intro`: the card has just opened, so its cost bars fill in turn. `slim`: the keepwarm strip on one line, for the room above the prompt that is short. */
+export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, intro = false, slim = false): { source: string; w: number; h: number; alt: string } => {
   const mode = v.mode
   const cold = mode === 'cold'
   const HUEM = HUE[mode]
@@ -47,7 +47,7 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
     `<text x="${x}" y="${y}" font-size="${o.size || 11}" font-weight="${o.w || 700}" fill="${o.fill || MUTED}"` +
     ` letter-spacing="${o.ls ?? 0}" text-anchor="${o.anchor || 'start'}">${str}</text>`
   const vline = (x: number, y: number, h: number) => `<rect x="${x}" y="${y}" width="1" height="${h}" fill="${LINE}"/>`
-  // The dividers fade in from the line colour to a thin neon in the middle.
+  // The dividers fade in from the line colour to a thin touch of the accent in the middle.
   const hline = (y: number) => `<rect x="13" y="${y}" width="${W - 26}" height="1" fill="url(#gb-line)"/>`
   const defs =
     `<defs><linearGradient id="gb-line" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${LINE}"/><stop offset=".5" stop-color="${NEON_LINE}" stop-opacity=".6"/><stop offset="1" stop-color="${LINE}"/></linearGradient></defs>`
@@ -75,7 +75,7 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
       g += txt(x1 + 5, y + k.cap, t('card.coldNow'), { size: 12, w: 600, fill: ICE, anchor: 'end' })
     } else {
       const now = x0 + (x1 - x0) * Math.min(1, v.idleMin / TTL_MIN)
-      // The bar runs from magenta to violet, with a small glow on the "now" point.
+      // The bar runs from coral to violet, with a small glow on the "now" point.
       g += `<linearGradient id="gb-idle" gradientUnits="userSpaceOnUse" x1="${x0}" y1="0" x2="${Math.max(now, x0 + 1)}" y2="0"><stop offset="0" stop-color="${FIRE}"/><stop offset="1" stop-color="${NEON_LINE}"/></linearGradient>`
       g += `<line x1="${x0}" y1="${ly}" x2="${now}" y2="${ly}" stroke="url(#gb-idle)" stroke-width="5" stroke-linecap="round"/>`
       g += `<circle class="k-now" cx="${now}" cy="${ly}" r="8" fill="${NEON_LINE}" opacity=".3"/><circle cx="${now}" cy="${ly}" r="2" fill="${GLINT}"/>`
@@ -142,6 +142,15 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
     kwItems.map(([label, value], i) => txt(xs[i] ?? 0, y + 22, label, { ls: 1.4 }) + txt(xs[i] ?? 0, y + 44, esc(value), { size: 17, w: 600, fill: TEXT })).join('') +
     note(xs[0] ?? 0, y + 58)
 
+  // The same three facts on a single line: label and value share a baseline, flowing as tspans.
+  const stripSlim = (y: number, xs: number[]) =>
+    kwItems
+      .map(
+        ([label, value], i) =>
+          `<text x="${xs[i] ?? 0}" y="${y + 19}" font-weight="700"><tspan font-size="11" fill="${MUTED}" letter-spacing="1.4">${label}</tspan><tspan font-size="14" font-weight="600" fill="${TEXT}" dx="8">${esc(value)}</tspan></text>`,
+      )
+      .join('')
+
   const stripRows = (y: number) =>
     kwItems.map(([label, value], i) => txt(13, y + 20 + i * 26, label, { ls: 1.4 }) + txt(W - 13, y + 20 + i * 26, esc(value), { size: 15, w: 600, fill: TEXT, anchor: 'end' })).join('') +
     note(13, y + KW_H_ROWS)
@@ -154,8 +163,9 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
     // where the last column still needs about 90 px for its price.
     const colW = Math.min(92, Math.floor((W - 640 - 103) / 3))
     g = zoneIdle(13, 0, 290, { header: true }) + vline(314, 18, H - 36) + zoneSize(340, 0, 260) + vline(614, 18, H - 36) + zoneCost(640, 0, colW)
-    g += hline(H) + stripColumns(H, [13, 340, 640])
-    H += KW_H
+    const xs = [13, 340, 640]
+    g += hline(H) + (slim ? stripSlim(H, xs) : stripColumns(H, xs))
+    H += slim ? KW_H_SLIM : KW_H
   } else if (kind === 'stacked') {
     H = 266
     g =
@@ -165,8 +175,8 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
       hline(134) +
       zoneCost(13, 134, Math.min(160, (W - 26) / 4)) +
       hline(H) +
-      stripColumns(H, [13, 13 + Math.round((W - 26) / 3), 13 + Math.round(((W - 26) * 2) / 3)])
-    H += KW_H
+      (slim ? stripSlim : stripColumns)(H, [13, 13 + Math.round((W - 26) / 3), 13 + Math.round(((W - 26) * 2) / 3)])
+    H += slim ? KW_H_SLIM : KW_H
   } else {
     // Narrow: the cache row above already shows the mascot and the chip.
     H = 296

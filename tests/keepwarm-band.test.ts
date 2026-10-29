@@ -1,6 +1,7 @@
 import { expect, mock } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 
+import { CHIP_EDGE, HUE } from '../src/ui/theme'
 import { answerSession } from './answers'
 import { testIt as test } from './lang'
 
@@ -148,5 +149,26 @@ test('before the first reply the band shows keepwarm only once it is armed', asy
   expect(await band.find({ key: 'kwrow' })).toBeUndefined()
   await keepwarm($, '')
   expect(await band.find({ text: `fino ${clock(NOW + 6 * HOUR)}` })).toBeDefined()
+  await band.unmount()
+})
+
+// The hover override rides on the Button node of the tree, under the keyed Box that scopes it.
+const hoverOf = async (band: { find: (q: { key: string }) => Promise<unknown> }, box: string) =>
+  ((await band.find({ key: box })) as { children?: Array<{ hover?: unknown }> } | undefined)?.children?.[0]?.hover
+
+test('the keepwarm button is the primary one while armed, a secondary one that turns coral under the pointer otherwise', async ($, on) => {
+  await resumed($, on)
+  const band = await $.ui.mount({ plugin: 'glitchband', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
+  const off = await band.find({ key: 'keepwarm-toggle' })
+  expect(off?.props.variant).toBe('secondary')
+  expect(await hoverOf(band, 'kw-button')).toEqual({ color: HUE.warm })
+  await keepwarm($, '')
+  const armed = await band.find({ key: 'keepwarm-toggle' })
+  expect(armed?.props.variant).toBe('primary')
+  expect(await hoverOf(band, 'kw-button')).toBeUndefined()
+  // The fold button is secondary too, and lights in the cache state's colour.
+  const fold = await band.find({ key: 'cache-fold' })
+  expect(fold?.props.variant).toBe('secondary')
+  expect(await hoverOf(band, 'fold')).toEqual({ color: CHIP_EDGE.warm })
   await band.unmount()
 })

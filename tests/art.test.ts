@@ -4,9 +4,9 @@ import { MODELS } from '../src/cache/cache'
 import type { CacheView } from '../src/cache/cache'
 import { en } from '../src/i18n/en'
 import { it } from '../src/i18n/it'
-import { CHIP_WIDTHS, MASCOT_PIX, REDUCED_MOTION, chipSvg, justPinged, mascotSvg } from '../src/ui/art'
+import { CHIP_WIDTHS, MASCOT_PIX, REDUCED_MOTION, barSvg, chipSvg, justPinged, mascotShapes, mascotSvg } from '../src/ui/art'
 import { cardSvg } from '../src/ui/card'
-import { CARD_BAR_STAGGER_MS, CARD_SCAN_OPACITY, PING_GLITCH_WINDOW_MS } from '../src/ui/theme'
+import { BAR_GROW_MS, BAR_H, BAR_SHINE_OPACITY, BAR_W, CARD_BAR_STAGGER_MS, CARD_SCAN_OPACITY, EMPTY, HUE, ICE, MASCOT, PING_GLITCH_WINDOW_MS, SEVEN_DAY } from '../src/ui/theme'
 import { answerSession } from './answers'
 import { testEn as test } from './lang'
 
@@ -18,16 +18,48 @@ test('the mascot is a 16 by 16 pixel grid', () => {
   for (const row of MASCOT_PIX) expect(row).toHaveLength(16)
 })
 
-test('a warm mascot pulses and scans its visor, a cold one only twinkles and never moves', () => {
+test('a warm mascot is lit: coral rim, pulsing visor, a scan and three sparks, and no ice', () => {
   const warm = mascotSvg('warm')
   expect(warm).toContain('class="m-visor"')
   expect(warm).toContain('class="m-scan"')
+  expect(warm.match(/class="m-sp m-sp\d"/g)).toHaveLength(3)
+  expect(warm).toContain(`fill="${MASCOT.warm.rim}"`)
+  expect(warm).not.toContain('gb-ice')
   expect(warm).not.toContain('class="m-glitch"')
+})
+
+test('a cold mascot is frozen: ice sheet, two icicles, a dark visor, one sheen, and its body never moves', () => {
   const cold = mascotSvg('cold')
-  expect(cold).toContain('m-g1')
-  expect(cold).not.toContain('class="m-visor"')
-  expect(cold).not.toContain('class="m-scan"')
-  expect(cold).not.toContain('<animateTransform')
+  expect(cold).toContain('gb-ice')
+  expect(cold.match(/<path d="M[\d.]+ [\d.]+h[\d.]+l/g)).toHaveLength(2)
+  expect(cold).toContain(`fill="${MASCOT.cold.visor}"`)
+  expect(cold.match(/class="m-sheen"/g)).toHaveLength(1)
+  expect(cold).toContain('.m-sheen{opacity:0;animation:m-sheen 5s')
+  for (const gone of ['class="m-visor"', 'class="m-scan"', 'class="m-sp', '<animateTransform']) expect(cold).not.toContain(gone)
+})
+
+test('warm and cold are told apart by their pixels: no coral on the cold figure, no ice on the warm one', () => {
+  const [warm, cold] = [mascotShapes(0, 0, 22, 'warm'), mascotShapes(0, 0, 22, 'cold')]
+  expect(warm).not.toBe(cold)
+  expect(cold).not.toContain(HUE.warm)
+  expect(cold).not.toContain(MASCOT.warm.rim)
+  expect(warm).not.toContain(ICE.body)
+  expect(warm).not.toContain(MASCOT.cold.hood)
+})
+
+test('a usage bar draws the share left on a track, grows once, and its shine stays faint', () => {
+  const bar = barSvg(40, SEVEN_DAY)
+  expect(bar).toContain(`<rect width="${BAR_W}" height="${BAR_H}" rx="${BAR_H / 2}" fill="${EMPTY}"/>`)
+  expect(bar).toContain(`class="b-fill" width="${(BAR_W * 40) / 100}"`)
+  expect(bar).toContain(`fill="${SEVEN_DAY}"`)
+  expect(bar).toContain(`animation:b-grow ${BAR_GROW_MS}ms`)
+  expect(bar).toContain('class="b-shine"')
+  expect(BAR_SHINE_OPACITY).toBeLessThanOrEqual(0.18)
+  expect(bar).toContain(`stop-opacity="${BAR_SHINE_OPACITY}"`)
+  expect(bar).toContain(REDUCED_MOTION)
+  expect(barSvg(100, SEVEN_DAY)).toContain(`class="b-fill" width="${BAR_W}"`)
+  expect(barSvg(2, SEVEN_DAY)).toContain(`class="b-fill" width="${BAR_H}"`)
+  expect(barSvg(0, SEVEN_DAY)).not.toContain('class="b-fill"')
 })
 
 test('a ping makes the mascot glitch: RGB copies and a jitter, three times of 120ms', () => {
@@ -72,7 +104,7 @@ test('every chip word of both languages has a measured width', () => {
 test('every animated drawing carries the reduced-motion rule', () => {
   chipSvg('warm')
   const drawings = [
-    mascotSvg('warm'), mascotSvg('cold'), mascotSvg('warm', true), chipSvg('cold').source,
+    mascotSvg('warm'), mascotSvg('cold'), mascotSvg('warm', true), chipSvg('cold').source, barSvg(50, SEVEN_DAY),
     cardSvg(view('warm'), 'wide', 800, KW).source, cardSvg(view('cold'), 'stacked', 700, KW, true).source, cardSvg(view('warm'), 'tight', 320, KW).source,
   ]
   for (const svg of drawings) {

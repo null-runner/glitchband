@@ -8,19 +8,19 @@ import { t } from '../i18n'
 import type { Options } from '../options'
 import type { Window } from '../../types'
 import { readWindows, windowParts } from '../usage/usage'
-import { chipSvg, justPinged, mascotSvg, wordOf } from './art'
+import { barSvg, chipSvg, justPinged, mascotSvg, wordOf } from './art'
 import { cardSvg } from './card'
 import {
-  BG, CELLS, EMPTY, HUE, INK, KW_BUTTON_COLORS, KW_COLORS, KW_LONG_AT, KW_LONG_AT_TERMINAL, LOW_AT, LOW_COLOR, MASCOT_SIZE, MUTED, TEXT,
-  CARD_MAX_PX, TIGHT_CELLS, bandPx, kindOf,
+  BAR_H, BAR_W, BG, CELLS, CHIP_EDGE, EMPTY, HEAD_ROWS, HUE, INK, KW_BUTTON_COLORS, KW_COLORS, KW_LONG_AT, KW_LONG_AT_TERMINAL, LOW_AT, LOW_COLOR, MASCOT_SIZE, MUTED, ROW_PX,
+  TEXT, CARD_MAX_PX, TIGHT_CELLS, bandPx, kindOf,
 } from './theme'
 
-// A band above the prompt in a purple cyberpunk look: dark violet surface, pale
-// lavender text, dot-matrix bars. Shows how much of each usage window is LEFT, 7-day
-// first, then 5-hour; 7D is violet, 5H is magenta; a window under 15% adds a bold red LOW.
+// A band above the prompt in a neutral look that matches Claude Desktop: dark warm grey surface,
+// off-white text, one violet. Shows how much of each usage window is LEFT, 7-day first, then
+// 5-hour, as a bar (dots in the terminal); 7D is violet, 5H light grey; a window under 15% adds a red LOW.
 //
-// After the first reply it also shows the prompt cache: WARM (neon magenta, netrunner
-// online) for an hour after the last request, then COLD (ice cyan, netrunner frozen) with what the
+// After the first reply it also shows the prompt cache: WARM (coral, netrunner
+// lit with sparks) for an hour after the last request, then COLD (ice blue, netrunner frozen) with what the
 // next message costs to re-cache. Hide / Show folds the card; warm starts folded,
 // cold starts open, and a choice holds until the cache flips. Zero token cost:
 // it reads the engine's own figures and draws.
@@ -71,15 +71,22 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
 
   const parts = (w: Window) => windowParts(w, cells, now)
 
+  // The bar of a window on the desktop (a drawing), the dots of the terminal (text). Under LOW the bar turns red.
+  const meter = (p: ReturnType<typeof parts>) =>
+    Svg ? (
+      <Svg key="bar" source={barSvg(p.left, p.left < LOW_AT ? LOW_COLOR : p.col)} alt={`${p.name} ${p.left}%`} width={BAR_W} height={BAR_H} isInteractive />
+    ) : (
+      [<Text key="on" color={p.col}>{p.d.on}</Text>, <Text key="off" color={EMPTY}>{p.d.off}</Text>]
+    )
+
   // Wide: every window on one row. Narrow: each window is a block of three
   // lines (name and dots, percent left, reset time) so nothing wraps or clips.
   const wide = (w: Window, i: number) => {
     const p = parts(w)
     return (
-      <Box key={`w-${i}`} flexDirection="row" flexShrink={0} marginRight={compact ? 2 : 3}>
+      <Box key={`w-${i}`} flexDirection="row" flexShrink={0} alignItems="center" marginRight={compact ? 2 : 3}>
         <Text color={MUTED} bold>{p.name} </Text>
-        <Text color={p.col}>{p.d.on}</Text>
-        <Text color={EMPTY}>{p.d.off}</Text>
+        {meter(p)}
         <Text color={p.col} bold> {p.left}%{compact ? '' : ` ${t('band.left')}`}</Text>
         {p.left < LOW_AT ? <Text color={LOW_COLOR} bold>{` ${t('band.low')}`}</Text> : null}
         {p.reset ? <Text color={MUTED}> · {p.reset}</Text> : null}
@@ -91,10 +98,9 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
     const p = parts(w)
     return (
       <Box key={`w-${i}`} flexDirection="column" flexShrink={0} marginRight={3}>
-        <Box flexDirection="row">
+        <Box flexDirection="row" alignItems="center">
           <Text color={MUTED} bold>{p.name} </Text>
-          <Text color={p.col}>{p.d.on}</Text>
-          <Text color={EMPTY}>{p.d.off}</Text>
+          {meter(p)}
         </Box>
         <Box flexDirection="row">
           <Text color={p.col} bold>{`${p.left}% ${t('band.left')}`}</Text>
@@ -130,22 +136,24 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
     </Box>
   )
   const kwLabel = isShort ? t(armed ? 'kw.offButton' : 'kw.on') : armed ? t('kw.disarm') : t('kw.arm', { window: options.keepwarmWindow.text })
-  const kwButton = (
+  // Armed: the primary button, drawn by the surface in its own accent. Otherwise a secondary one, in its
+  // state's colour at rest and coral under the pointer (a hover needs the keyed Box around it).
+  const kwPress = (text: string) => (
     <Box key="kw-button" flexShrink={0} alignItems="center" marginLeft={1}>
-      <Button key="keepwarm-toggle" label={kwLabel} onPress={() => toggleKeepwarm($, kwState)}>
-        <Text color={KW_BUTTON_COLORS[value.tone]} bold>{kwLabel}</Text>
+      <Button
+        key="keepwarm-toggle"
+        label={text}
+        variant={value.tone === 'on' ? 'primary' : 'secondary'}
+        hover={value.tone === 'on' ? undefined : { color: HUE.warm }}
+        onPress={() => toggleKeepwarm($, kwState)}
+      >
+        <Text color={value.tone === 'on' ? undefined : KW_BUTTON_COLORS[value.tone]} bold>{text}</Text>
       </Button>
     </Box>
   )
+  const kwButton = kwPress(kwLabel)
   // Compact: the button says the state itself, so one element holds what two did.
-  const kwChipLabel = value.tone === 'off' ? t('kw.offShort') : `${t('kw.nameShort')} ${value.short}`
-  const kwChip = (
-    <Box key="kw-button" flexShrink={0} alignItems="center" marginLeft={1}>
-      <Button key="keepwarm-toggle" label={kwChipLabel} onPress={() => toggleKeepwarm($, kwState)}>
-        <Text color={KW_BUTTON_COLORS[value.tone]} bold>{kwChipLabel}</Text>
-      </Button>
-    </Box>
-  )
+  const kwChip = kwPress(value.tone === 'off' ? t('kw.offShort') : `${t('kw.nameShort')} ${value.short}`)
   const kwRow = (
     <Box key="kwrow" flexDirection="row" paddingX={1} alignItems="center">
       {kwIndicator}
@@ -177,7 +185,21 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   const mine = mineModel(view)
   const stored = await readFold($)
   // Folding needs the card, and the card is a drawing: the terminal stays folded.
-  const open = Svg !== null && (stored && stored.mode === mode ? stored.open : cold)
+  // The card must fit the rows the band may take, or the engine scrolls it and leaves blank rows: try the full
+  // strip, then the one-line strip, else no card (and no Show button, which could only open nothing).
+  const px = Math.min(bandPx(columns), CARD_MAX_PX)
+  const budget = (e.props.maxRows - HEAD_ROWS[kind]) * ROW_PX
+  const kwText = kwCard(facts, now)
+  const drawCard = (intro: boolean) => {
+    for (const slim of [false, true]) {
+      const c = cardSvg(view, kind, Math.floor(px / options.cardScale), kwText, intro, slim)
+      const h = Math.round((c.h * px) / c.w)
+      if (h <= budget) return { ...c, h }
+    }
+    return null
+  }
+  const fits = Svg !== null && drawCard(false) !== null
+  const open = fits && (stored && stored.mode === mode ? stored.open : cold)
   const toggle = () => toggleFold($, mode)
 
   const badge = Svg
@@ -199,9 +221,9 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
       ]
     : [<Text key="left" color={hue} bold>{` ${Math.max(0, TTL_MIN - view.idleMin)}${t('unit.m')}${compact ? '' : ` ${t('band.left')}`}`}</Text>]
 
-  const button = Svg ? (
+  const button = fits ? (
     <Box key="fold" flexShrink={0} alignItems="center">
-      <Button key="cache-fold" label={t(open ? 'band.hide' : 'band.show')} onPress={toggle}>
+      <Button key="cache-fold" label={t(open ? 'band.hide' : 'band.show')} variant="secondary" hover={{ color: CHIP_EDGE[mode] }} onPress={toggle}>
         <Text color={hue} bold>{t(open ? 'band.hide' : 'band.show')}</Text>
       </Button>
     </Box>
@@ -268,12 +290,11 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   const intro = open && !cardWasOpen
   cardWasOpen = open
   let card = null
-  if (open && Svg) {
-    const px = Math.min(bandPx(columns), CARD_MAX_PX)
-    const c = cardSvg(view, kind, Math.floor(px / options.cardScale), kwCard(facts, now), intro)
+  const c = open ? drawCard(intro) : null
+  if (c && Svg) {
     card = (
       <Box key="card" flexDirection="row">
-        <Svg source={c.source} alt={c.alt} width={px} isInteractive={kind !== 'tight'} />
+        <Svg source={c.source} alt={c.alt} width={px} height={c.h} isInteractive={kind !== 'tight'} />
       </Box>
     )
   }

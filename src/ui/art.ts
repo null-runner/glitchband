@@ -5,7 +5,7 @@
 import type { KeepwarmFacts } from '../../types'
 import { t } from '../i18n'
 import { SANS } from './font'
-import { CHIP_EDGE, GLINT, HUE, INK, MASCOT, MASCOT_SIZE, PING_GLITCH_WINDOW_MS } from './theme'
+import { BAR_GROW_MS, BAR_H, BAR_SHINE_OPACITY, BAR_SHINE_S, BAR_W, CHIP_EDGE, EMPTY, GLINT, HUE, ICE, INK, MASCOT, MASCOT_SIZE, PING_GLITCH_WINDOW_MS, SPARK } from './theme'
 import type { Mode } from './theme'
 
 /** The chip's word for a state, in the language in use. */
@@ -58,8 +58,8 @@ const CHIP_CSS =
   '@keyframes c-gc{0%{opacity:.95;clip-path:inset(55% 0 10% 0) fill-box}25%{opacity:.95;clip-path:inset(5% 0 70% 0) fill-box}50%{opacity:.95;clip-path:inset(50% 0 25% 0) fill-box}75%{opacity:.95;clip-path:inset(20% 0 40% 0) fill-box}100%{opacity:0}}'
 
 /**
- * A chip with a neon edge, dark text on the full colour. With `glitch`, two copies of the word
- * (magenta and ice, offset, cut into bands) flicker once over it; the doc must carry CHIP_CSS.
+ * A chip with a pale edge, dark text on the full colour. With `glitch`, two copies of the word
+ * (coral and ice, offset, cut into bands) flicker once over it; the doc must carry CHIP_CSS.
  */
 export const chipShapes = (x: number, y: number, word: string, mode: Mode, size: number, ls: number, glitch = false): { w: number; h: number; svg: string } => {
   const { w, h } = CHIP_WIDTHS[`${word}@${size}`] ?? { w: Math.round(word.length * size * 0.8 + size * 1.24), h: Math.round(size * 1.65) }
@@ -75,7 +75,7 @@ export const chipShapes = (x: number, y: number, word: string, mode: Mode, size:
     svg:
       (glitch ? '<g class="c-j">' : '') +
       `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${fill}"/>` +
-      // The neon edge and its glow, drawn inside the chip's own box.
+      // The pale edge and its glow, drawn inside the chip's own box.
       `<rect x="${x + 1.5}" y="${y + 1.5}" width="${w - 3}" height="${h - 3}" rx="${Math.max(1, rx - 1.5)}" fill="none" stroke="${CHIP_EDGE[mode]}" stroke-width="2.6" opacity=".3"/>` +
       `<rect x="${x + 0.6}" y="${y + 0.6}" width="${w - 1.2}" height="${h - 1.2}" rx="${rx - 0.6}" fill="none" stroke="${CHIP_EDGE[mode]}" stroke-width="1.1" opacity=".95"/>` +
       label('', INK) +
@@ -94,7 +94,7 @@ export const chipSvg = (mode: Mode): { source: string; w: number; h: number; gli
   return { source: svgDoc(c.w, c.h, c.svg, true, glitch ? CHIP_CSS : ''), w: c.w, h: c.h, glitch }
 }
 
-// ---------- The netrunner: visor lit and scanning when warm, dark and iced over when cold ----------
+// ---------- The netrunner: warm and lit with a few sparks, or frozen under a sheet of ice ----------
 // 16 x 16, one letter a pixel: H hood, E its rim, S shadow, V visor, J jack, A antenna tip, a its stem.
 export const MASCOT_PIX = [
   '..........A.....',
@@ -115,12 +115,10 @@ export const MASCOT_PIX = [
   '.HHHHHHHHHHHHHH.',
 ]
 const GRID = 16
-/** Where the ice sits on a cold mascot: crystals on the hood and frost on the visor. */
-const ICE_SPIKES: Array<[number, number]> = [[4, 1], [5, 2], [11, 1], [12, 2], [2, 4], [13, 5], [3, 13]]
-const ICE_FROST: Array<[number, number]> = [[5, 6], [6, 6], [9, 7], [10, 7]]
-const ICE_GLINTS: Array<[number, number]> = [[4, 1], [12, 2], [13, 5]]
-
-const MASCOT_COLORS: Record<string, string> = { H: MASCOT.hood, E: MASCOT.rim, S: MASCOT.shadow, J: MASCOT.jack, a: MASCOT.rim }
+/** Where the warm netrunner's sparks start (they rise two pixels and fade), each a beat after the last. */
+const SPARKS: Array<[number, number]> = [[3, 2], [8, 1], [12, 2]]
+/** The icicles under the chin: x of the base, the base's width and their length, in pixels of the grid. */
+const ICICLES: Array<[number, number, number]> = [[5.3, 1.3, 2.7], [9.2, 1.1, 2.1]]
 
 // One path per colour, not a rect per pixel: separate rects at fractional sizes leave faint
 // seams between them, while one path fills the shared edges solid.
@@ -134,20 +132,19 @@ const pixels = (u: number, chars: string, fill: string): string => {
   return `<path d="${d}" fill="${fill}"/>`
 }
 
-const cells = (list: Array<[number, number]>, u: number, fill: string, cls = '', opacity = 1): string =>
-  list.map(([x, y]) => `<rect${cls ? ` class="${cls}"` : ''} x="${x * u}" y="${y * u}" width="${u}" height="${u}" fill="${fill}"${opacity < 1 ? ` opacity="${opacity}"` : ''}/>`).join('')
-
-/** The mascot's animations for a box `size` wide: the visor pulse and scan, the ice's twinkle, the ping glitch. */
+/** The mascot's animations for a box `size` wide: the warm visor pulse, scan and sparks; the cold sheen across the ice; the ping glitch. */
 export const mascotCss = (size: number): string => {
   const u = size / GRID
   const glow = (r: number) => `filter:drop-shadow(0 0 ${(r * u).toFixed(2)}px ${HUE.warm})`
   return (
     `.m-visor{animation:m-pulse 2.4s ease-in-out infinite;${glow(0.6)}}` +
-    `@keyframes m-pulse{0%,100%{opacity:.78;${glow(0.6)}}50%{opacity:1;${glow(1.8)}}}` +
+    `@keyframes m-pulse{0%,100%{opacity:.8;${glow(0.6)}}50%{opacity:1;${glow(1.6)}}}` +
     `.m-scan{opacity:0;animation:m-scan 3s linear infinite}` +
-    `@keyframes m-scan{0%{transform:translateX(0);opacity:0}8%{opacity:.85}92%{opacity:.85}100%{transform:translateX(${(9 * u).toFixed(2)}px);opacity:0}}` +
-    '.m-g{opacity:0;animation:m-twinkle 5s ease-in-out infinite}.m-g2{animation-delay:1.7s}.m-g3{animation-delay:3.3s}' +
-    '@keyframes m-twinkle{0%,60%,100%{opacity:0}75%{opacity:1}}' +
+    `@keyframes m-scan{0%{transform:translateX(0);opacity:0}8%{opacity:.7}92%{opacity:.7}100%{transform:translateX(${(9 * u).toFixed(2)}px);opacity:0}}` +
+    '.m-sp{opacity:0;animation:m-spark 1.6s ease-out infinite}.m-sp2{animation-delay:.55s}.m-sp3{animation-delay:1.1s}' +
+    `@keyframes m-spark{0%{opacity:0;transform:translateY(0)}20%{opacity:1}100%{opacity:0;transform:translateY(${(-2.2 * u).toFixed(2)}px)}}` +
+    '.m-sheen{opacity:0;animation:m-sheen 5s ease-in-out infinite}' +
+    `@keyframes m-sheen{0%,62%{opacity:0;transform:translateX(${(-6 * u).toFixed(2)}px) skewX(-20deg)}72%{opacity:.55}88%{opacity:.55}100%{opacity:0;transform:translateX(${(18 * u).toFixed(2)}px) skewX(-20deg)}}` +
     '.m-glitch{animation:m-jit .12s steps(1,end) 3}' +
     '@keyframes m-jit{0%{transform:translate(1px,0)}34%{transform:translate(-1px,1px)}67%{transform:translate(0,-1px)}100%{transform:none}}' +
     '.m-gm,.m-gc{opacity:0}.m-gm{animation:m-gm .12s steps(1,end) 3}.m-gc{animation:m-gc .12s steps(1,end) 3}' +
@@ -159,24 +156,29 @@ export const mascotCss = (size: number): string => {
 /**
  * The netrunner in a box `size` pixels square, top-left at x, y. Its animations are CSS (mascotCss),
  * so the Svg needs isInteractive and the doc must carry them. `glitch` adds the ping's RGB split.
+ * Warm: coral rim and jack, a pulsing visor, sparks rising. Cold: the whole figure in ice greys under a
+ * sheet of ice with two icicles and a visor gone dark; only a sheen crosses the ice, the body never moves.
  */
 export const mascotShapes = (x: number, y: number, size: number, mode: Mode, glitch = false): string => {
   const warm = mode === 'warm'
   const u = size / GRID
+  const P = MASCOT[mode]
   const silhouette = (fill: string, cls: string) => `<g class="${cls}">${pixels(u, 'HESV', fill)}</g>`
   let s = `<g transform="translate(${x} ${y})" shape-rendering="crispEdges">`
   if (glitch) s += '<g class="m-glitch">' + silhouette(HUE.warm, 'm-gm') + silhouette(HUE.cold, 'm-gc')
-  for (const [chars, fill] of Object.entries(MASCOT_COLORS)) s += pixels(u, chars, fill)
-  s += pixels(u, 'A', HUE[mode])
+  s += pixels(u, 'H', P.hood) + pixels(u, 'Ea', P.rim) + pixels(u, 'S', P.shadow) + pixels(u, 'J', P.jack) + pixels(u, 'A', warm ? SPARK : ICE.edge)
   if (warm) {
-    s += `<g class="m-visor"><rect x="${3 * u}" y="${6 * u}" width="${10 * u}" height="${2 * u}" fill="${HUE.warm}"/></g>`
+    s += `<g class="m-visor"><rect x="${3 * u}" y="${6 * u}" width="${10 * u}" height="${2 * u}" fill="${P.visor}"/></g>`
     s += `<rect class="m-scan" x="${3 * u}" y="${6 * u}" width="${u}" height="${2 * u}" fill="${GLINT}"/>`
+    SPARKS.forEach(([sx, sy], i) => (s += `<rect class="m-sp m-sp${i + 1}" x="${sx * u}" y="${sy * u}" width="${u}" height="${u}" fill="${SPARK}"/>`))
   } else {
-    // Cold: the visor is dark, the hood and the visor wear ice, and a few glints twinkle slowly. The body never moves.
-    s += `<rect x="${3 * u}" y="${6 * u}" width="${10 * u}" height="${2 * u}" fill="${MASCOT.visorOff}"/>`
-    s += cells(ICE_FROST, u, HUE.cold, '', 0.55)
-    s += cells(ICE_SPIKES, u, MASCOT.ice)
-    ICE_GLINTS.forEach(([gx, gy], i) => (s += cells([[gx, gy]], u, GLINT, `m-g m-g${i + 1}`)))
+    const [bx, by, bw, bh] = [0.5 * u, 1.5 * u, 15 * u, 14 * u]
+    s += `<rect x="${3 * u}" y="${6 * u}" width="${10 * u}" height="${2 * u}" fill="${P.visor}"/>`
+    s += `<clipPath id="gb-ice"><rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${u}"/></clipPath>`
+    s += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${u}" fill="${ICE.body}" opacity=".24"/>`
+    s += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${u}" fill="none" stroke="${ICE.edge}" stroke-width="${(0.7 * u).toFixed(2)}"/>`
+    s += `<g clip-path="url(#gb-ice)"><rect class="m-sheen" x="${2 * u}" y="${by}" width="${2.4 * u}" height="${bh}" fill="${GLINT}"/></g>`
+    for (const [ix, iw, il] of ICICLES) s += `<path d="M${ix * u} ${12.6 * u}h${iw * u}l${(-iw / 2) * u} ${il * u}z" fill="${ICE.icicle}" stroke="${ICE.edge}" stroke-width="${(0.15 * u).toFixed(2)}"/>`
   }
   if (glitch) s += '</g>'
   return s + '</g>'
@@ -191,3 +193,25 @@ export const justPinged = (f: Pick<KeepwarmFacts, 'last'> | null, now: number): 
 /** The mascot beside the chip in the band's row. */
 export const mascotSvg = (mode: Mode, glitch = false): string =>
   svgDoc(MASCOT_SIZE, MASCOT_SIZE, mascotShapes(0, 0, MASCOT_SIZE, mode, glitch), false, mascotCss(MASCOT_SIZE))
+
+// ---------- The usage bar ----------
+/**
+ * A bar of how much of a window is left: a track, a fill of `left` percent in `color`, grown from
+ * zero once when the band opens, and a faint shine that sweeps across the fill every few seconds.
+ * The doc carries animations, so its Svg needs isInteractive.
+ */
+export const barSvg = (left: number, color: string): string => {
+  const fill = left > 0 ? Math.max(BAR_H, (BAR_W * Math.min(100, left)) / 100) : 0
+  const r = BAR_H / 2
+  const css =
+    `.b-fill{transform-box:fill-box;transform-origin:0 50%;animation:b-grow ${BAR_GROW_MS}ms cubic-bezier(.2,.8,.2,1) both}` +
+    '@keyframes b-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}' +
+    `.b-shine{opacity:0;animation:b-sweep ${BAR_SHINE_S}s ease-in-out ${BAR_GROW_MS}ms infinite}` +
+    `@keyframes b-sweep{0%{opacity:0;transform:translateX(-30px)}8%{opacity:1}30%{opacity:1;transform:translateX(${BAR_W}px)}34%,100%{opacity:0;transform:translateX(${BAR_W}px)}}`
+  const body =
+    `<defs><clipPath id="gb-bar"><rect width="${fill}" height="${BAR_H}" rx="${r}"/></clipPath>` +
+    `<linearGradient id="gb-shine"><stop offset="0" stop-color="${GLINT}" stop-opacity="0"/><stop offset=".5" stop-color="${GLINT}" stop-opacity="${BAR_SHINE_OPACITY}"/><stop offset="1" stop-color="${GLINT}" stop-opacity="0"/></linearGradient></defs>` +
+    `<rect width="${BAR_W}" height="${BAR_H}" rx="${r}" fill="${EMPTY}"/>` +
+    (fill > 0 ? `<g clip-path="url(#gb-bar)"><rect class="b-fill" width="${fill}" height="${BAR_H}" fill="${color}"/><rect class="b-shine" x="0" width="30" height="${BAR_H}" fill="url(#gb-shine)"/></g>` : '')
+  return svgDoc(BAR_W, BAR_H, body, false, css)
+}

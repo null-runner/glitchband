@@ -3,43 +3,58 @@
 export type Mode = 'warm' | 'cold'
 export type Kind = 'wide' | 'stacked' | 'tight'
 
-// The palette: purple cyberpunk. Every colour of the band, the card, the mascot and the
-// chips lives here; nothing else in src/ui carries a hex value (tests/theme.test.ts checks).
-export const BG = '#15101f'
+// The palette: neutral, in step with Claude Desktop, with one clean violet. Every colour of the band,
+// the card, the mascot and the chips lives here; nothing else in src/ui carries a hex value (tests/theme.test.ts checks).
+export const BG = '#1f1e1d'
 /** The cache card's own surface, a step lighter than the band. */
-export const CARD_BG = '#1b1428'
-export const LINE = '#2d2342'
-export const TEXT = '#ece6ff'
-export const MUTED = '#8a7fa8'
-/** Empty dots: decoration, not text, so outside the contrast check. */
-export const EMPTY = '#3a2f52'
-export const SEVEN_DAY = '#b388ff'
-export const FIVE_HOUR = '#ff4fd8'
-export const AMBER = '#ffb84d'
-/** The LOW tag of a window under LOW_AT percent. */
-export const LOW_COLOR = '#ff3b5c'
+export const CARD_BG = '#262624'
+export const LINE = '#3e3e38'
+export const TEXT = '#faf9f5'
+export const MUTED = '#9c9a92'
+/** The empty part of a bar or a dot row: decoration, not text, so outside the contrast check. */
+export const EMPTY = '#3a3936'
+/** The one accent: the 7-day bar and the card's divider lines. */
+export const SEVEN_DAY = '#8f80f5'
+/** The 5-hour bar: neutral and light, so the violet stays the only strong colour. */
+export const FIVE_HOUR = '#c2c0b6'
+export const AMBER = '#e0a84e'
+/** The LOW tag, and the bar, of a window under LOW_AT percent. */
+export const LOW_COLOR = '#ee645c'
 /** Text on a filled chip. */
-export const INK = '#15101f'
+export const INK = '#1f1e1d'
 
-/** The cache's two states: neon magenta while warm, ice cyan while cold. */
-export const HUE: Record<Mode, string> = { warm: '#ff2bd6', cold: '#5ce1ff' }
-/** The thin neon edge of a chip, a pale tint of its fill. */
-export const CHIP_EDGE: Record<Mode, string> = { warm: '#ff9cec', cold: '#c4f3ff' }
-/** The neon of the card's divider lines. */
+/** The cache's two states: Claude coral while warm, ice blue while cold. */
+export const HUE: Record<Mode, string> = { warm: '#d97757', cold: '#7cc4e8' }
+/** The thin edge of a chip, a pale tint of its fill. */
+export const CHIP_EDGE: Record<Mode, string> = { warm: '#f0a98f', cold: '#c9e8f7' }
+/** The card's divider lines carry a thin touch of the accent in the middle. */
 export const NEON_LINE = SEVEN_DAY
 
-/** The netrunner mascot's pixels: hood, its rim, the shadow under the visor, the dark visor of a cold cache, the jack, the ice. */
-export const MASCOT = { hood: '#33265c', rim: '#7c5fd1', shadow: '#0d0918', visorOff: '#5b5275', jack: '#b388ff', ice: '#c4f3ff' } as const
+/** The netrunner's pixels, by state: hood, its rim, the shadow under the visor, the visor, the jack. A warm one glows coral; a cold one is all ice and grey. */
+export const MASCOT = {
+  warm: { hood: '#3b3532', rim: '#d97757', shadow: '#141211', visor: '#f2a281', jack: '#d97757' },
+  cold: { hood: '#3b4852', rim: '#8fb8cf', shadow: '#10161b', visor: '#27313a', jack: '#6e97ad' },
+} as const
+/** The sheet of ice over a cold netrunner: its body, its bright edge, the icicles. */
+export const ICE = { body: '#cfeaf8', edge: '#eaf7fd', icicle: '#dff2fb' } as const
+/** A spark of the warm netrunner. */
+export const SPARK = '#f6b394'
 export const GLINT = '#ffffff'
 
-/** Colour of each usage window's dots. */
+/** Colour of each usage window's bar. */
 export const WINDOW_COLORS: Record<string, string> = { seven_day: SEVEN_DAY, five_hour: FIVE_HOUR }
 /** keepwarm's state in the band's text. */
 export const KW_COLORS = { on: HUE.warm, stopped: AMBER } as const
-/** Button labels: neon while keepwarm holds the cache, amber once stopped, ice while it is off. */
-export const KW_BUTTON_COLORS = { on: HUE.warm, stopped: AMBER, off: HUE.cold } as const
+/** Keepwarm button labels at rest (armed is the primary button and takes the surface's own). Hover turns them coral. */
+export const KW_BUTTON_COLORS = { stopped: AMBER, off: TEXT } as const
 
 // ---------- Band layout ----------
+/** The usage bars of the desktop: size in pixels, and the one-time grow and the sweep of the shine across the fill. */
+export const BAR_W = 96
+export const BAR_H = 8
+export const BAR_GROW_MS = 600
+export const BAR_SHINE_S = 4
+export const BAR_SHINE_OPACITY = 0.16
 export const CELLS = 10
 export const TIGHT_CELLS = 6
 /** A window under this percent left adds LOW. */
@@ -87,6 +102,14 @@ export const CARD_TOP = 6
 export const KW_H = 62
 export const KW_H_ROWS = 78
 export const KW_NOTE_H = 16
+/** The strip as one line, when the room above the prompt is short. */
+export const KW_H_SLIM = 30
+
+// ---------- Height ----------
+/** A guess at the desktop's pixels a band row stands for (its code font's line height): no doc gives it, so a card is sized in rows with this and kept under maxRows. */
+export const ROW_PX = 20
+/** Rows the band's own lines take above the card, by layout: the row with the mascot, plus the keepwarm row and the stacked blocks of the narrower ones. */
+export const HEAD_ROWS: Record<Kind, number> = { wide: 2, stacked: 5, tight: 7 }
 
 /** The desktop prompt column tops out near 960 px whatever the column count says, so a wider card is only shrunk with its text (ponytail: measured on one screen; a real slot width from the engine would replace it). */
 export const CARD_MAX_PX = 1000
