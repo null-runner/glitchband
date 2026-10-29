@@ -100,8 +100,8 @@ export const CARD_BAR_STAGGER_MS = 80
 export const CARD_BAR_MS = 420
 /** The gap above the card's content, drawn inside the card. */
 export const CARD_TOP = 8
-/** The corner radius of the dark panel's lower edge. */
-export const PANEL_RADIUS = 10
+/** The room under the card's content. */
+export const CARD_BOTTOM = 10
 /** The keepwarm strip's height: one row of three columns, or three stacked rows (plus a line for a stop reason) when narrow. */
 export const KW_H = 62
 export const KW_H_ROWS = 78
@@ -111,10 +111,14 @@ export const KW_H_SLIM = 30
 
 // ---------- Width: what a wide row is estimated to take, in pixels ----------
 /** A character of the desktop's text in the band, and the cell the engine counts (12 px, the code font's advance). */
-export const CHAR_PX = 10
+export const CHAR_PX = 11
 export const CELL_PX = 12
-/** What a native button adds around its label, and the band's side padding (the 'md' step, a guess). */
-export const BTN_CHROME = 32
+/** What a native button adds around its label, and the band's side padding (the 'md' step, a guess); both erred on the generous side after a real screenshot cut the select off. */
+export const BTN_CHROME = 64
+/** A select: its label, value and arrow. */
+export const SELECT_CHROME = 70
+/** Kept free at the end of a wide row on top of the estimate. */
+export const SAFETY_PX = 24
 export const PAD_PX = 12
 
 // ---------- Height ----------

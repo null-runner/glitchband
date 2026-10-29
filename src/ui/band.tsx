@@ -12,7 +12,7 @@ import { readWindows, windowParts } from '../usage/usage'
 import { CHIP_WIDTHS, barSvg, chipSvg, justPinged, mascotSvg, wordOf } from './art'
 import { cardSvg } from './card'
 import {
-  BAR_H, BAR_W, BAR_W_SHORT, BG, BTN_CHROME, CELL_PX, CHAR_PX, PAD_PX, CELLS, CHIP_EDGE, EMPTY, HEAD_ROWS, HUE, INK, KW_COLORS, KW_LONG_AT, KW_LONG_AT_TERMINAL, LOW_AT, LOW_COLOR, MASCOT_SIZE, MUTED, ROW_PX,
+  BAR_H, BAR_W, BAR_W_SHORT, BG, SAFETY_PX, SELECT_CHROME, BTN_CHROME, CELL_PX, CHAR_PX, PAD_PX, CELLS, CHIP_EDGE, EMPTY, HEAD_ROWS, HUE, INK, KW_COLORS, KW_LONG_AT, KW_LONG_AT_TERMINAL, LOW_AT, LOW_COLOR, MASCOT_SIZE, MUTED, ROW_PX,
   TEXT, CARD_MAX_PX, TIGHT_CELLS, bandPx, kindOf,
 } from './theme'
 
@@ -53,7 +53,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
 
   if (list.length === 0 && !view) {
     return (
-      <Box backgroundColor={BG} paddingX="md" paddingY="md">
+      <Box backgroundColor={BG} paddingX="md" paddingTop="md" paddingBottom="md">
         <Text color={MUTED}>{`${t('band.usage')} · ${t('band.waiting')}`}</Text>
       </Box>
     )
@@ -78,13 +78,13 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
 
   // Wide: every window on one row. Narrow: each window is a block of three
   // lines (name and dots, percent left, reset time) so nothing wraps or clips.
-  // `lvl` is how crowded the row is: 0 as drawn, 1 without the reset times, 2 also with shorter bars.
+  // `lvl` is how crowded the row is: 0 as drawn, 1 without the reset times, 2 also without the USAGE word, 3 also with shorter bars.
   const wide = (w: Window, i: number, lvl = 0) => {
     const p = parts(w)
     return (
       <Box key={`w-${i}`} flexDirection="row" flexShrink={0} alignItems="center" marginRight={compact ? 2 : 3}>
         <Text color={MUTED} bold>{p.name} </Text>
-        {meter(p, lvl > 1 ? BAR_W_SHORT : BAR_W)}
+        {meter(p, lvl > 2 ? BAR_W_SHORT : BAR_W)}
         <Text color={p.col} bold> {p.left}%{compact ? '' : ` ${t('band.left')}`}</Text>
         {p.left < LOW_AT ? <Text color={LOW_COLOR} bold>{` ${t('band.low')}`}</Text> : null}
         {p.reset && lvl === 0 ? <Text color={MUTED}> · {p.reset}</Text> : null}
@@ -154,8 +154,8 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
       />
     </Box>
   )
-  const kwRow = (
-    <Box key="kwrow" flexDirection="row" paddingX="md" paddingY="md" alignItems="center">
+  const kwRowOf = (padB: 'sm' | 'md') => (
+    <Box key="kwrow" flexDirection="row" paddingX="md" paddingTop="md" paddingBottom={padB} alignItems="center">
       {kwIndicator}
       {grow}
       {kwSelect}
@@ -166,7 +166,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   // plus the keepwarm row once keepwarm is armed or has stopped.
   if (!view) {
     const row = (
-      <Box key="row" flexDirection="row" paddingX="md" paddingY="md">
+      <Box key="row" flexDirection="row" paddingX="md" paddingTop="md" paddingBottom="md">
         {label}
         {usage}
       </Box>
@@ -174,7 +174,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
     return (
       <Box flexDirection="column" width="100%" backgroundColor={BG}>
         {row}
-        {value.tone === 'off' ? null : kwRow}
+        {value.tone === 'off' ? null : kwRowOf('md')}
       </Box>
     )
   }
@@ -200,6 +200,8 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   }
   const fits = Svg !== null && drawCard(false) !== null
   const open = fits && (stored && stored.mode === mode ? stored.open : cold)
+  // Open, the card follows at once: the row keeps less room under it.
+  const padB = open ? 'sm' : 'md'
   const toggle = () => toggleFold($, mode)
 
   const badge = Svg
@@ -235,11 +237,11 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   const textPx = (str: string) => str.length * CHAR_PX
   const rowPx = (lvl: number): number => {
     const clock = '00/00 00:00'
-    let px = textPx(t('band.usage')) + (isWide ? 2 : 3) * CELL_PX
+    let px = lvl < 2 ? textPx(t('band.usage')) + (isWide ? 2 : 3) * CELL_PX : 0
     for (const w of list) {
       const p = parts(w)
       const text = `${p.name}  ${p.left}%${compact ? '' : ` ${t('band.left')}`}${p.left < LOW_AT ? ` ${t('band.low')}` : ''}${p.reset && lvl === 0 ? ` · ${p.reset}` : ''}`
-      px += textPx(text) + (Svg ? (lvl > 1 ? BAR_W_SHORT : BAR_W) : 0) + (compact ? 2 : 3) * CELL_PX
+      px += textPx(text) + (Svg ? (lvl > 2 ? BAR_W_SHORT : BAR_W) : 0) + (compact ? 2 : 3) * CELL_PX
     }
     if (!open) {
       const word = CHIP_WIDTHS[`${wordOf(mode)}@13`]?.w ?? 70
@@ -248,16 +250,16 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
     }
     if (!compact) px += textPx(`${isShort ? t('kw.nameShort') : t('kw.name')} ${isShort ? clock : t('kw.until', { time: clock })}`) + 2 * CELL_PX
     px += Math.max(...[t('band.show'), t('band.hide')].map(textPx)) + BTN_CHROME + 2 * CELL_PX
-    return px + textPx(`${t('kw.nameShort')} ${t('kw.select.always')}`) + BTN_CHROME + CELL_PX
+    return px + textPx(`${t('kw.nameShort')} ${t('kw.select.always')}`) + SELECT_CHROME + CELL_PX + SAFETY_PX
   }
   const room = columns * CELL_PX - 2 * PAD_PX
-  const level = !Svg || !isWide ? 0 : rowPx(0) <= room ? 0 : rowPx(1) <= room ? 1 : 2
+  const level = !Svg || !isWide ? 0 : [0, 1, 2].find(l => rowPx(l) <= room) ?? 3
 
   let rows
   if (kind === 'wide') {
     rows = (
-      <Box key="row" flexDirection="row" paddingX="md" paddingY="md" alignItems="center">
-        {label}
+      <Box key="row" flexDirection="row" paddingX="md" paddingTop="md" paddingBottom={padB} alignItems="center">
+        {level < 2 ? label : null}
         {usageAt(level)}
         {open ? null : (
           <Box key="inline" flexDirection="row" flexShrink={0} marginRight={compact ? 1 : 2} alignItems="center">
@@ -274,7 +276,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   } else if (kind === 'stacked') {
     // The cache becomes a third stacked block, the same shape as 7D and 5H.
     rows = (
-      <Box key="row" flexDirection="row" paddingX="md" paddingY="md">
+      <Box key="row" flexDirection="row" paddingX="md" paddingTop="md" paddingBottom={padB}>
         {label}
         {usage}
         {open ? null : (
@@ -296,11 +298,11 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   } else {
     // Narrow: the cache gets its own row under the usage blocks.
     rows = [
-      <Box key="row" flexDirection="row" paddingX="md" paddingY="md">
+      <Box key="row" flexDirection="row" paddingX="md" paddingTop="md" paddingBottom={padB}>
         {label}
         {usage}
       </Box>,
-      <Box key="cache" flexDirection="row" paddingX="md" paddingY="md" alignItems="center">
+      <Box key="cache" flexDirection="row" paddingX="md" paddingTop="md" paddingBottom={padB} alignItems="center">
         {badge}
         {summary}
         {grow}
@@ -323,11 +325,9 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   }
 
   return (
-    <Box flexDirection="column" width="100%">
-      <Box flexDirection="column" backgroundColor={BG}>
-        {rows}
-        {isInline ? null : kwRow}
-      </Box>
+    <Box flexDirection="column" width="100%" backgroundColor={BG}>
+      {rows}
+      {isInline ? null : kwRowOf(padB)}
       {card}
     </Box>
   )

@@ -161,9 +161,9 @@ test('an open card stays inside maxRows: full strip, then the one-line strip, th
   expect(String(c12?.props.source)).toContain('width="1000" height="225"')
   await full.unmount()
 
-  const slim = await draw(9)
+  const slim = await draw(10)
   const { card: c11, rows: r10 } = await rowsOf(slim)
-  expect(r10).toBeLessThanOrEqual(9)
+  expect(r10).toBeLessThanOrEqual(10)
   expect(Number(c11?.props.height)).toBeLessThan(Number(c12?.props.height))
   await slim.unmount()
 

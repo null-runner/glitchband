@@ -7,7 +7,7 @@ import { t } from '../i18n'
 import { chipShapes, mascotCss, mascotShapes, svgDoc, wordOf } from './art'
 import {
   CARD_BAR_MS, CARD_BAR_STAGGER_MS, CARD_MASCOT_SIZE, CARD_SCAN_OPACITY, CARD_SCAN_S, CARD_TOP, AMBER, EMPTY, GLINT, HUE, KW_H, KW_H_ROWS, KW_H_SLIM, KW_NOTE_H,
-  BG, LINE, MUTED, NEON_LINE, PANEL_RADIUS, ROW_PX, TEXT,
+  BG, CARD_BOTTOM, LINE, MUTED, NEON_LINE, ROW_PX, TEXT,
 } from './theme'
 import type { Kind } from './theme'
 
@@ -160,7 +160,7 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
   let H: number
   let g: string
   if (kind === 'wide') {
-    H = 132
+    H = 140
     // 92 px a model column on the page's full width; tighter near the switch point,
     // where the last column still needs about 90 px for its price.
     const colW = Math.min(92, Math.floor((W - 640 - 103) / 3))
@@ -192,10 +192,10 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
       stripRows(H)
     H += KW_H_ROWS + (kw.note ? KW_NOTE_H : 0)
   }
-  const h = Math.ceil((H + CARD_TOP) / ROW_PX) * ROW_PX
+  const h = Math.ceil((H + CARD_TOP + CARD_BOTTOM) / ROW_PX) * ROW_PX
   const body =
     defs +
-    `<path d="M0 0H${W}V${h - PANEL_RADIUS}A${PANEL_RADIUS} ${PANEL_RADIUS} 0 0 1 ${W - PANEL_RADIUS} ${h}H${PANEL_RADIUS}A${PANEL_RADIUS} ${PANEL_RADIUS} 0 0 1 0 ${h - PANEL_RADIUS}Z" fill="${BG}"/><g transform="translate(0 ${CARD_TOP})">` +
+    `<rect width="${W}" height="${h}" fill="${BG}"/><g transform="translate(0 ${CARD_TOP})">` +
     hline(0) +
     g +
     '</g>' +

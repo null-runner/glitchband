@@ -4,7 +4,7 @@ import type { TestBody } from 'claude-code/testing'
 import { setLanguage } from '../src/i18n'
 import { kwCard } from '../src/keepwarm/view'
 import { cardSvg } from '../src/ui/card'
-import { AMBER, HUE, BTN_CHROME, CELL_PX, CHAR_PX, CHIP_EDGE, PAD_PX } from '../src/ui/theme'
+import { AMBER, HUE, BTN_CHROME, SAFETY_PX, SELECT_CHROME, CELL_PX, CHAR_PX, CHIP_EDGE, PAD_PX } from '../src/ui/theme'
 import { answerSession } from './answers'
 import { testIt as test } from './lang'
 
@@ -206,7 +206,7 @@ const px = (n: Node | string): number => {
   const props = n.props ?? {}
   if (n.type === 'Svg') return Number(props.width)
   if (n.type === 'Button') return String(props.label).length * CHAR_PX + BTN_CHROME
-  if (n.type === 'Select') return `${String(props.label)} ${String((props.options as Array<{ label: string }>).reduce((a, o) => (o.label.length > a.length ? o.label : a), ''))}`.length * CHAR_PX + BTN_CHROME
+  if (n.type === 'Select') return `${String(props.label)} ${String((props.options as Array<{ label: string }>).reduce((a, o) => (o.label.length > a.length ? o.label : a), ''))}`.length * CHAR_PX + SELECT_CHROME
   const kids = (n.children ?? []).map(px)
   const inner = props.flexDirection === 'column' ? Math.max(0, ...kids) : kids.reduce((a, b) => a + b, 0)
   return n.type === 'Text' ? inner : inner + (cells(props.marginLeft) + cells(props.marginRight)) * CELL_PX
@@ -223,6 +223,11 @@ test('at 82 and 100 columns with keepwarm armed, the wide row fits its width and
     const select = await band.find({ key: 'keepwarm-select' })
     expect(select?.props.label).toBe('KW')
     expect(await kwValueOf(band)).toBe('6h')
+    expect(await band.find({ key: 'cache-fold' })).toBeDefined()
+    // What gives way goes in order: the reset times, then the USAGE word, then the bar length; never Show or the select.
+    const text = JSON.stringify(row)
+    const [hasReset, hasWord] = [text.includes(' · '), text.includes('USO') || text.includes('USAGE')]
+    expect(!hasWord ? !hasReset : true, `${columns} columns: the word went before the reset times`).toBe(true)
     await band.unmount()
   }
 })
