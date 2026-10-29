@@ -23,11 +23,11 @@
     "language": {
       "type": "string",
       "title": "Language",
-      "description": "auto follows Claude Code's language setting, then the system locale; en or it",
-      "default": "auto",
+      "description": "en (default), or auto to follow Claude Code's language setting, then the system locale; it for Italian",
+      "default": "en",
       "options": [
-        "auto",
         "en",
+        "auto",
         "it"
       ]
     },

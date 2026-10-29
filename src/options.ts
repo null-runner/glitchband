@@ -28,7 +28,7 @@ const windowOf = (v: unknown): Options['keepwarmWindow'] => {
 
 /** The plugin's options with each value checked; one outside its range or of the wrong type falls back to its default. */
 export const readOptions = (raw: PluginOptions): Options => ({
-  language: raw.language === 'en' || raw.language === 'it' ? raw.language : 'auto',
+  language: raw.language === 'auto' || raw.language === 'it' ? raw.language : 'en',
   compactBelow: inRange(raw.compactBelow, COMPACT_RANGE) ? raw.compactBelow : DEFAULT_COMPACT_BELOW,
   cardScale: inRange(raw.cardScale, SCALE_RANGE) ? raw.cardScale : DEFAULT_CARD_SCALE,
   keepwarmWindow: windowOf(raw.keepwarmWindow),

@@ -41,7 +41,7 @@ const submit = ($: Engine, text: string) => $.prompt.submit({ text, wait: false,
 
 test('the defaults keep the behaviour the band has always had', () => {
   expect(readOptions({})).toEqual({
-    language: 'auto',
+    language: 'en',
     compactBelow: 110,
     cardScale: 1,
     keepwarmWindow: { text: '6h', ms: 6 * HOUR },
@@ -57,6 +57,12 @@ test('valid values are taken, a duration is normalised', () => {
     keepwarmWindow: { text: '2h30m', ms: 150 * 60 * 1000 },
     coldGuard: false,
   })
+})
+
+test('auto is kept, anything else but it falls back to en', () => {
+  expect(readOptions({ language: 'auto' }).language).toBe('auto')
+  expect(readOptions({ language: 'it' }).language).toBe('it')
+  expect(readOptions({ language: 'fr' }).language).toBe('en')
 })
 
 test('an invalid value falls back to its default', () => {
