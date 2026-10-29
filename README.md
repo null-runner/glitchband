@@ -2,12 +2,16 @@
 
 A band above the prompt for Claude Code. It shows how much of your 7-day and 5-hour usage is left, whether the prompt cache is WARM or COLD, what the next message costs, and it can hold the cache warm with a ping while you are away.
 
-![The cache card, warm, in the purple cyberpunk look](assets/preview/card-warm.png)
+![The band: usage bars, the warm netrunner, buttons](assets/preview/band-wide.png)
+
+![The cache card, warm](assets/preview/card-warm.png)
+
+Warm and frozen netrunner, at 4x: ![warm](assets/preview/mascot-warm-4x.png) ![cold](assets/preview/mascot-cold-4x.png)
 
 ## What you see
 
-- Usage: one dot bar per window (7D, 5H) with the percent left and the time to reset. A window under 15% adds LOW.
-- Cache: after the first reply, WARM for an hour after the last request, then COLD with the price of re-caching. The Show / Hide button opens a card with the idle time, the context size and the cost by model.
+- Usage: one bar per window (7D violet, 5H light grey) showing how much is left, with the percent and the time to reset. A window under 15% turns red and adds LOW. The terminal keeps dots.
+- Cache: after the first reply, WARM for an hour after the last request, then COLD with the price of re-caching. The netrunner is lit with rising sparks while warm and frozen under ice while cold. The Show / Hide button opens a card with the idle time, the context size and the cost by model; it only opens when it fits the rows the band may take, and short of room its keepwarm strip folds to one line.
 - Keepwarm: next to the cache chip, `KEEPWARM until 18:30`, `KEEPWARM always`, `KEEPWARM stopped` or a quiet `keepwarm off`. A button arms it (`Arm 6h`) or disarms it. The card adds the pings sent with their estimated cost and the cold writes paid this session.
 - Narrow bands and the terminal use short forms (`KW 18:30`, `KW off`). The terminal draws text only, with no drawings and no card.
 
