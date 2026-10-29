@@ -5,7 +5,7 @@
 import type { KeepwarmFacts } from '../../types'
 import { t } from '../i18n'
 import { SANS } from './font'
-import { BAR_GROW_MS, BAR_H, BAR_SHINE_OPACITY, BAR_SHINE_S, BAR_W, CHIP_EDGE, EMPTY, GLINT, HUE, ICE, INK, MASCOT, MASCOT_SIZE, PING_GLITCH_WINDOW_MS, SPARK } from './theme'
+import { BAR_DOTS, BAR_DOT_R, BAR_DOT_S, BAR_GROW_MS, BAR_H, BAR_SHINE_OPACITY, BAR_SHINE_S, BAR_W, CHIP_EDGE, EMPTY, GLINT, HUE, ICE, INK, MASCOT, MASCOT_SIZE, PING_GLITCH_WINDOW_MS, SPARK } from './theme'
 import type { Mode } from './theme'
 
 /** The chip's word for a state, in the language in use. */
@@ -200,18 +200,25 @@ export const mascotSvg = (mode: Mode, glitch = false): string =>
  * zero once when the band opens, and a faint shine that sweeps across the fill every few seconds.
  * The doc carries animations, so its Svg needs isInteractive.
  */
-export const barSvg = (left: number, color: string): string => {
-  const fill = left > 0 ? Math.max(BAR_H, (BAR_W * Math.min(100, left)) / 100) : 0
+export const barSvg = (left: number, color: string, w = BAR_W): string => {
+  const fill = left > 0 ? Math.max(BAR_H, (w * Math.min(100, left)) / 100) : 0
   const r = BAR_H / 2
+  const drift = Math.min(fill * 0.3, 26)
   const css =
     `.b-fill{transform-box:fill-box;transform-origin:0 50%;animation:b-grow ${BAR_GROW_MS}ms cubic-bezier(.2,.8,.2,1) both}` +
     '@keyframes b-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}' +
     `.b-shine{opacity:0;animation:b-sweep ${BAR_SHINE_S}s ease-in-out ${BAR_GROW_MS}ms infinite}` +
-    `@keyframes b-sweep{0%{opacity:0;transform:translateX(-30px)}8%{opacity:1}30%{opacity:1;transform:translateX(${BAR_W}px)}34%,100%{opacity:0;transform:translateX(${BAR_W}px)}}`
+    `@keyframes b-sweep{0%{opacity:0;transform:translateX(-40px)}10%{opacity:1}55%{opacity:1;transform:translateX(${w}px)}60%,100%{opacity:0;transform:translateX(${w}px)}}` +
+    `.b-dot{opacity:0;animation:b-drift ${BAR_DOT_S}s ease-in-out ${BAR_GROW_MS}ms infinite}` +
+    `@keyframes b-drift{0%{opacity:0;transform:translateX(0)}20%{opacity:.8}80%{opacity:.5}100%{opacity:0;transform:translateX(${drift.toFixed(1)}px)}}`
+  let dots = ''
+  if (fill >= 2 * BAR_H)
+    for (let i = 0; i < BAR_DOTS; i++)
+      dots += `<circle class="b-dot" style="animation-delay:${(((i * 0.61) % BAR_DOT_S) + BAR_GROW_MS / 1000).toFixed(2)}s" cx="${((fill * (i + 0.5)) / BAR_DOTS).toFixed(1)}" cy="${[3.2, 5, 6.8, 4.1, 5.9][i % 5]}" r="${BAR_DOT_R}" fill="${GLINT}"/>`
   const body =
     `<defs><clipPath id="gb-bar"><rect width="${fill}" height="${BAR_H}" rx="${r}"/></clipPath>` +
     `<linearGradient id="gb-shine"><stop offset="0" stop-color="${GLINT}" stop-opacity="0"/><stop offset=".5" stop-color="${GLINT}" stop-opacity="${BAR_SHINE_OPACITY}"/><stop offset="1" stop-color="${GLINT}" stop-opacity="0"/></linearGradient></defs>` +
-    `<rect width="${BAR_W}" height="${BAR_H}" rx="${r}" fill="${EMPTY}"/>` +
-    (fill > 0 ? `<g clip-path="url(#gb-bar)"><rect class="b-fill" width="${fill}" height="${BAR_H}" fill="${color}"/><rect class="b-shine" x="0" width="30" height="${BAR_H}" fill="url(#gb-shine)"/></g>` : '')
-  return svgDoc(BAR_W, BAR_H, body, false, css)
+    `<rect width="${w}" height="${BAR_H}" rx="${r}" fill="${EMPTY}"/>` +
+    (fill > 0 ? `<g clip-path="url(#gb-bar)"><rect class="b-fill" width="${fill}" height="${BAR_H}" fill="${color}"/><rect class="b-shine" x="0" width="40" height="${BAR_H}" fill="url(#gb-shine)"/>${dots}</g>` : '')
+  return svgDoc(w, BAR_H, body, false, css)
 }

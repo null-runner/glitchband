@@ -6,8 +6,6 @@ export type Kind = 'wide' | 'stacked' | 'tight'
 // The palette: neutral, in step with Claude Desktop, with one clean violet. Every colour of the band,
 // the card, the mascot and the chips lives here; nothing else in src/ui carries a hex value (tests/theme.test.ts checks).
 export const BG = '#1f1e1d'
-/** The cache card's own surface, a step lighter than the band. */
-export const CARD_BG = '#262624'
 export const LINE = '#3e3e38'
 export const TEXT = '#faf9f5'
 export const MUTED = '#9c9a92'
@@ -15,8 +13,8 @@ export const MUTED = '#9c9a92'
 export const EMPTY = '#3a3936'
 /** The one accent: the 7-day bar and the card's divider lines. */
 export const SEVEN_DAY = '#8f80f5'
-/** The 5-hour bar: neutral and light, so the violet stays the only strong colour. */
-export const FIVE_HOUR = '#c2c0b6'
+/** The 5-hour bar: teal, apart from the violet, the coral and the ice blue. */
+export const FIVE_HOUR = '#3fb6a0'
 export const AMBER = '#e0a84e'
 /** The LOW tag, and the bar, of a window under LOW_AT percent. */
 export const LOW_COLOR = '#ee645c'
@@ -45,16 +43,20 @@ export const GLINT = '#ffffff'
 export const WINDOW_COLORS: Record<string, string> = { seven_day: SEVEN_DAY, five_hour: FIVE_HOUR }
 /** keepwarm's state in the band's text. */
 export const KW_COLORS = { on: HUE.warm, stopped: AMBER } as const
-/** Keepwarm button labels at rest (armed is the primary button and takes the surface's own). Hover turns them coral. */
-export const KW_BUTTON_COLORS = { stopped: AMBER, off: TEXT } as const
 
 // ---------- Band layout ----------
 /** The usage bars of the desktop: size in pixels, and the one-time grow and the sweep of the shine across the fill. */
 export const BAR_W = 96
-export const BAR_H = 8
-export const BAR_GROW_MS = 600
-export const BAR_SHINE_S = 4
-export const BAR_SHINE_OPACITY = 0.16
+/** The shorter bar a crowded row falls back to. */
+export const BAR_W_SHORT = 64
+export const BAR_H = 10
+export const BAR_GROW_MS = 900
+export const BAR_SHINE_S = 2.8
+export const BAR_SHINE_OPACITY = 0.4
+/** Light dots drifting along the filled part: how many, their radius and the seconds a drift takes. */
+export const BAR_DOTS = 5
+export const BAR_DOT_R = 1
+export const BAR_DOT_S = 3
 export const CELLS = 10
 export const TIGHT_CELLS = 6
 /** A window under this percent left adds LOW. */
@@ -85,19 +87,21 @@ export const bandPx = (columns: number): number => (columns + 5) * 12
 
 // ---------- Card layout ----------
 /** The mascot beside the chip in the band's row, in pixels. */
-export const MASCOT_SIZE = 26
+export const MASCOT_SIZE = 22
 /** The mascot in the card's header. */
 export const CARD_MASCOT_SIZE = 22
 /** A ping this recent makes the mascot glitch. */
 export const PING_GLITCH_WINDOW_MS = 60_000
 /** The card's scanline: its opacity (kept faint) and the seconds it takes to cross the card. */
-export const CARD_SCAN_OPACITY = 0.05
+export const CARD_SCAN_OPACITY = 0.025
 export const CARD_SCAN_S = 8
 /** The cost bars fill one after the other when the card opens: the gap between bars and the time each takes. */
 export const CARD_BAR_STAGGER_MS = 80
 export const CARD_BAR_MS = 420
-/** The gap between the row and the card, drawn inside the card. */
-export const CARD_TOP = 6
+/** The gap above the card's content, drawn inside the card. */
+export const CARD_TOP = 8
+/** The corner radius of the dark panel's lower edge. */
+export const PANEL_RADIUS = 10
 /** The keepwarm strip's height: one row of three columns, or three stacked rows (plus a line for a stop reason) when narrow. */
 export const KW_H = 62
 export const KW_H_ROWS = 78
@@ -105,11 +109,19 @@ export const KW_NOTE_H = 16
 /** The strip as one line, when the room above the prompt is short. */
 export const KW_H_SLIM = 30
 
+// ---------- Width: what a wide row is estimated to take, in pixels ----------
+/** A character of the desktop's text in the band, and the cell the engine counts (12 px, the code font's advance). */
+export const CHAR_PX = 10
+export const CELL_PX = 12
+/** What a native button adds around its label, and the band's side padding (the 'md' step, a guess). */
+export const BTN_CHROME = 32
+export const PAD_PX = 12
+
 // ---------- Height ----------
-/** A guess at the desktop's pixels a band row stands for (its code font's line height): no doc gives it, so a card is sized in rows with this and kept under maxRows. */
-export const ROW_PX = 20
+/** The desktop's pixels a band row stands for, read off a real screenshot (a 2-row band measured about 50 px; no doc gives it). A card is padded to whole rows and kept under maxRows with this. */
+export const ROW_PX = 25
 /** Rows the band's own lines take above the card, by layout: the row with the mascot, plus the keepwarm row and the stacked blocks of the narrower ones. */
-export const HEAD_ROWS: Record<Kind, number> = { wide: 2, stacked: 5, tight: 7 }
+export const HEAD_ROWS: Record<Kind, number> = { wide: 2, stacked: 6, tight: 8 }
 
 /** The desktop prompt column tops out near 960 px whatever the column count says, so a wider card is only shrunk with its text (ponytail: measured on one screen; a real slot width from the engine would replace it). */
 export const CARD_MAX_PX = 1000

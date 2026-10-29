@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import { barSvg, chipShapes, mascotSvg } from '../src/ui/art'
 import * as theme from '../src/ui/theme'
-import { AMBER, BG, CARD_BG, FIVE_HOUR, HUE, INK, LOW_COLOR, MUTED, SEVEN_DAY, TEXT } from '../src/ui/theme'
+import { AMBER, BG, FIVE_HOUR, HUE, INK, LOW_COLOR, MUTED, SEVEN_DAY, TEXT } from '../src/ui/theme'
 
 const lum = (hex: string): number => {
   const [r = 0, g = 0, b = 0] = [1, 3, 5].map(i => {
@@ -18,9 +18,9 @@ const contrast = (a: string, b: string): number => {
 
 const MIN = 4.5
 
-test('every text colour reads at WCAG AA (4.5:1) on the band and on the card', () => {
+test('every text colour reads at WCAG AA (4.5:1) on the dark panel', () => {
   const texts = { TEXT, MUTED, SEVEN_DAY, FIVE_HOUR, WARM: HUE.warm, COLD: HUE.cold, AMBER, LOW_COLOR }
-  for (const [bgName, bg] of Object.entries({ BG, CARD_BG }))
+  for (const [bgName, bg] of Object.entries({ BG }))
     for (const [name, fg] of Object.entries(texts)) expect(contrast(fg, bg), `${name} on ${bgName}`).toBeGreaterThanOrEqual(MIN)
 })
 

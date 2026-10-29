@@ -1,17 +1,18 @@
 import type { EngineInterface, MatchedHook } from 'claude-code'
 
 import { TTL_MIN, costOf, mineModel, readCache, readFold, toggleFold, usd, viewOf } from '../cache/cache'
-import { armKeepwarm, disarmKeepwarm, readKeepwarm } from '../keepwarm/engine'
+import { keepwarmCommand } from '../keepwarm/commands'
+import { parseDuration, readKeepwarm } from '../keepwarm/engine'
 import type { State } from '../keepwarm/engine'
-import { isArmed, kwCard, kwValue } from '../keepwarm/view'
+import { kwCard, kwValue } from '../keepwarm/view'
 import { t } from '../i18n'
 import type { Options } from '../options'
 import type { Window } from '../../types'
 import { readWindows, windowParts } from '../usage/usage'
-import { barSvg, chipSvg, justPinged, mascotSvg, wordOf } from './art'
+import { CHIP_WIDTHS, barSvg, chipSvg, justPinged, mascotSvg, wordOf } from './art'
 import { cardSvg } from './card'
 import {
-  BAR_H, BAR_W, BG, CELLS, CHIP_EDGE, EMPTY, HEAD_ROWS, HUE, INK, KW_BUTTON_COLORS, KW_COLORS, KW_LONG_AT, KW_LONG_AT_TERMINAL, LOW_AT, LOW_COLOR, MASCOT_SIZE, MUTED, ROW_PX,
+  BAR_H, BAR_W, BAR_W_SHORT, BG, BTN_CHROME, CELL_PX, CHAR_PX, PAD_PX, CELLS, CHIP_EDGE, EMPTY, HEAD_ROWS, HUE, INK, KW_COLORS, KW_LONG_AT, KW_LONG_AT_TERMINAL, LOW_AT, LOW_COLOR, MASCOT_SIZE, MUTED, ROW_PX,
   TEXT, CARD_MAX_PX, TIGHT_CELLS, bandPx, kindOf,
 } from './theme'
 
@@ -29,12 +30,6 @@ import {
 // or off), a button arms it or disarms it, and the card gains the ping and cold-write
 // tallies. A narrow band and the terminal say it in short form.
 
-// Same as typing /keepwarm or /keepwarm off. A press reads the window fresh: the one drawn may be a redraw behind.
-async function toggleKeepwarm($: EngineInterface, s: State): Promise<void> {
-  const armed = isArmed(s, await $.clock.now())
-  await (armed ? disarmKeepwarm($, s) : armKeepwarm($, s))
-}
-
 /** Whether the last draw had the card open, to tell an opening from a redraw. */
 let cardWasOpen = false
 
@@ -46,6 +41,8 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
 
   const ui = $.ui.resolve(e)
   const { Box, Button, Text } = ui
+  // The band is raised on the terminal and the desktop, and both draw a Select.
+  const Select = 'Select' in ui ? ui.Select : null
   // Svg draws on desktop, mobile and VS Code; the terminal gets the text form.
   // Ask the surface, not the table: the terminal's table still lists Svg.
   const Svg = e.surface !== 'terminal' && 'Svg' in ui ? ui.Svg : null
@@ -56,7 +53,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
 
   if (list.length === 0 && !view) {
     return (
-      <Box backgroundColor={BG} paddingX={1}>
+      <Box backgroundColor={BG} paddingX="md" paddingY="md">
         <Text color={MUTED}>{`${t('band.usage')} · ${t('band.waiting')}`}</Text>
       </Box>
     )
@@ -72,24 +69,25 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   const parts = (w: Window) => windowParts(w, cells, now)
 
   // The bar of a window on the desktop (a drawing), the dots of the terminal (text). Under LOW the bar turns red.
-  const meter = (p: ReturnType<typeof parts>) =>
+  const meter = (p: ReturnType<typeof parts>, barW = BAR_W) =>
     Svg ? (
-      <Svg key="bar" source={barSvg(p.left, p.left < LOW_AT ? LOW_COLOR : p.col)} alt={`${p.name} ${p.left}%`} width={BAR_W} height={BAR_H} isInteractive />
+      <Svg key="bar" source={barSvg(p.left, p.left < LOW_AT ? LOW_COLOR : p.col, barW)} alt={`${p.name} ${p.left}%`} width={barW} height={BAR_H} isInteractive />
     ) : (
       [<Text key="on" color={p.col}>{p.d.on}</Text>, <Text key="off" color={EMPTY}>{p.d.off}</Text>]
     )
 
   // Wide: every window on one row. Narrow: each window is a block of three
   // lines (name and dots, percent left, reset time) so nothing wraps or clips.
-  const wide = (w: Window, i: number) => {
+  // `lvl` is how crowded the row is: 0 as drawn, 1 without the reset times, 2 also with shorter bars.
+  const wide = (w: Window, i: number, lvl = 0) => {
     const p = parts(w)
     return (
       <Box key={`w-${i}`} flexDirection="row" flexShrink={0} alignItems="center" marginRight={compact ? 2 : 3}>
         <Text color={MUTED} bold>{p.name} </Text>
-        {meter(p)}
+        {meter(p, lvl > 1 ? BAR_W_SHORT : BAR_W)}
         <Text color={p.col} bold> {p.left}%{compact ? '' : ` ${t('band.left')}`}</Text>
         {p.left < LOW_AT ? <Text color={LOW_COLOR} bold>{` ${t('band.low')}`}</Text> : null}
-        {p.reset ? <Text color={MUTED}> · {p.reset}</Text> : null}
+        {p.reset && lvl === 0 ? <Text color={MUTED}> · {p.reset}</Text> : null}
       </Box>
     )
   }
@@ -116,12 +114,12 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
       <Text color={TEXT} bold>{t('band.usage')}</Text>
     </Box>
   )
-  const usage = list.length > 0
-    ? list.map(isWide ? wide : stacked)
+  const usageAt = (lvl: number) => list.length > 0
+    ? list.map((w, i) => (isWide ? wide(w, i, lvl) : stacked(w, i)))
     : [<Box key="wait" flexShrink={0} marginRight={3}><Text color={MUTED}>{t('band.waiting')}</Text></Box>]
 
+  const usage = usageAt(0)
   const grow = <Box key="grow" flexGrow={1} />
-  const armed = isArmed(facts, now)
   const value = kwValue(facts, now)
   const kwIndicator = (
     <Box key="kw" flexDirection="row" flexShrink={0} marginRight={2}>
@@ -135,30 +133,32 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
       )}
     </Box>
   )
-  const kwLabel = isShort ? t(armed ? 'kw.offButton' : 'kw.on') : armed ? t('kw.disarm') : t('kw.arm', { window: options.keepwarmWindow.text })
-  // Armed: the primary button, drawn by the surface in its own accent. Otherwise a secondary one, in its
-  // state's colour at rest and coral under the pointer (a hover needs the keyed Box around it).
-  const kwPress = (text: string) => (
-    <Box key="kw-button" flexShrink={0} alignItems="center" marginLeft={1}>
-      <Button
-        key="keepwarm-toggle"
-        label={text}
-        variant={value.tone === 'on' ? 'primary' : 'secondary'}
-        hover={value.tone === 'on' ? undefined : { color: HUE.warm }}
-        onPress={() => toggleKeepwarm($, kwState)}
-      >
-        <Text color={value.tone === 'on' ? undefined : KW_BUTTON_COLORS[value.tone]} bold>{text}</Text>
-      </Button>
+  // The keepwarm control: a Select of the same choices as /keepwarm, short and of fixed width ("KW 6h"), so a label can never
+  // outgrow the row. A pick runs the command itself. `value` follows the state, whoever changed it.
+  const windows = [...new Set(['90m', options.keepwarmWindow.text, '12h'])]
+  const remaining = value.tone === 'on' && facts && !facts.always ? facts.deadline - now : 0
+  const picked = windows.find(w => (parseDuration(w) ?? 0) >= remaining)
+  const kwSelect = Select && (
+    <Box key="kw-select" flexShrink={0} alignItems="center" marginLeft={1}>
+      <Select
+        key="keepwarm-select"
+        label={t('kw.nameShort')}
+        options={[
+          { value: 'off', label: t('kw.offButton') },
+          ...windows.map(w => ({ value: w, label: w })),
+          { value: 'always', label: t('kw.select.always') },
+          ...(remaining > 0 && !picked ? [{ value: 'on', label: t('kw.on') }] : []),
+        ]}
+        value={value.tone !== 'on' ? 'off' : facts?.always ? 'always' : (picked ?? 'on')}
+        onSelect={(choice: string) => (choice === 'on' ? undefined : keepwarmCommand(kwState, $, { args: choice } as Parameters<typeof keepwarmCommand>[2]))}
+      />
     </Box>
   )
-  const kwButton = kwPress(kwLabel)
-  // Compact: the button says the state itself, so one element holds what two did.
-  const kwChip = kwPress(value.tone === 'off' ? t('kw.offShort') : `${t('kw.nameShort')} ${value.short}`)
   const kwRow = (
-    <Box key="kwrow" flexDirection="row" paddingX={1} alignItems="center">
+    <Box key="kwrow" flexDirection="row" paddingX="md" paddingY="md" alignItems="center">
       {kwIndicator}
       {grow}
-      {kwButton}
+      {kwSelect}
     </Box>
   )
 
@@ -166,13 +166,13 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   // plus the keepwarm row once keepwarm is armed or has stopped.
   if (!view) {
     const row = (
-      <Box key="row" flexDirection="row" paddingX={1}>
+      <Box key="row" flexDirection="row" paddingX="md" paddingY="md">
         {label}
         {usage}
       </Box>
     )
     return (
-      <Box flexDirection="column" backgroundColor={BG}>
+      <Box flexDirection="column" width="100%" backgroundColor={BG}>
         {row}
         {value.tone === 'off' ? null : kwRow}
       </Box>
@@ -230,12 +230,35 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   ) : null
   const isInline = kind === 'wide'
 
+  // The wide row's room, estimated in pixels from its characters: the keepwarm button is sized for its
+  // longest label, and what gives way first is the reset times, then the bar length, never a button.
+  const textPx = (str: string) => str.length * CHAR_PX
+  const rowPx = (lvl: number): number => {
+    const clock = '00/00 00:00'
+    let px = textPx(t('band.usage')) + (isWide ? 2 : 3) * CELL_PX
+    for (const w of list) {
+      const p = parts(w)
+      const text = `${p.name}  ${p.left}%${compact ? '' : ` ${t('band.left')}`}${p.left < LOW_AT ? ` ${t('band.low')}` : ''}${p.reset && lvl === 0 ? ` · ${p.reset}` : ''}`
+      px += textPx(text) + (Svg ? (lvl > 1 ? BAR_W_SHORT : BAR_W) : 0) + (compact ? 2 : 3) * CELL_PX
+    }
+    if (!open) {
+      const word = CHIP_WIDTHS[`${wordOf(mode)}@13`]?.w ?? 70
+      const tail = cold ? ` ${view.idle}${mine ? ' · $00.00' : ''}` : ` 00${t('unit.m')}${compact ? '' : ` ${t('band.left')}`}`
+      px += (Svg ? MASCOT_SIZE + CHAR_PX + word : 0) + textPx(tail) + (compact ? 1 : 2) * CELL_PX
+    }
+    if (!compact) px += textPx(`${isShort ? t('kw.nameShort') : t('kw.name')} ${isShort ? clock : t('kw.until', { time: clock })}`) + 2 * CELL_PX
+    px += Math.max(...[t('band.show'), t('band.hide')].map(textPx)) + BTN_CHROME + 2 * CELL_PX
+    return px + textPx(`${t('kw.nameShort')} ${t('kw.select.always')}`) + BTN_CHROME + CELL_PX
+  }
+  const room = columns * CELL_PX - 2 * PAD_PX
+  const level = !Svg || !isWide ? 0 : rowPx(0) <= room ? 0 : rowPx(1) <= room ? 1 : 2
+
   let rows
   if (kind === 'wide') {
     rows = (
-      <Box key="row" flexDirection="row" paddingX={1} alignItems="center">
+      <Box key="row" flexDirection="row" paddingX="md" paddingY="md" alignItems="center">
         {label}
-        {usage}
+        {usageAt(level)}
         {open ? null : (
           <Box key="inline" flexDirection="row" flexShrink={0} marginRight={compact ? 1 : 2} alignItems="center">
             {badge}
@@ -245,13 +268,13 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
         {isInline && !compact ? kwIndicator : null}
         {grow}
         {button}
-        {isInline ? (compact ? kwChip : kwButton) : null}
+        {isInline ? kwSelect : null}
       </Box>
     )
   } else if (kind === 'stacked') {
     // The cache becomes a third stacked block, the same shape as 7D and 5H.
     rows = (
-      <Box key="row" flexDirection="row" paddingX={1}>
+      <Box key="row" flexDirection="row" paddingX="md" paddingY="md">
         {label}
         {usage}
         {open ? null : (
@@ -273,11 +296,11 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   } else {
     // Narrow: the cache gets its own row under the usage blocks.
     rows = [
-      <Box key="row" flexDirection="row" paddingX={1}>
+      <Box key="row" flexDirection="row" paddingX="md" paddingY="md">
         {label}
         {usage}
       </Box>,
-      <Box key="cache" flexDirection="row" paddingX={1} alignItems="center">
+      <Box key="cache" flexDirection="row" paddingX="md" paddingY="md" alignItems="center">
         {badge}
         {summary}
         {grow}
@@ -300,9 +323,11 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   }
 
   return (
-    <Box flexDirection="column" backgroundColor={BG}>
-      {rows}
-      {isInline ? null : kwRow}
+    <Box flexDirection="column" width="100%">
+      <Box flexDirection="column" backgroundColor={BG}>
+        {rows}
+        {isInline ? null : kwRow}
+      </Box>
       {card}
     </Box>
   )

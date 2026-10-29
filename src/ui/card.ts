@@ -6,8 +6,8 @@ import type { CacheView } from '../cache/cache'
 import { t } from '../i18n'
 import { chipShapes, mascotCss, mascotShapes, svgDoc, wordOf } from './art'
 import {
-  CARD_BAR_MS, CARD_BAR_STAGGER_MS, CARD_BG, CARD_MASCOT_SIZE, CARD_SCAN_OPACITY, CARD_SCAN_S, CARD_TOP, EMPTY, GLINT, HUE, KW_H, KW_H_ROWS, KW_H_SLIM, KW_NOTE_H,
-  LINE, MUTED, NEON_LINE, TEXT,
+  CARD_BAR_MS, CARD_BAR_STAGGER_MS, CARD_MASCOT_SIZE, CARD_SCAN_OPACITY, CARD_SCAN_S, CARD_TOP, AMBER, EMPTY, GLINT, HUE, KW_H, KW_H_ROWS, KW_H_SLIM, KW_NOTE_H,
+  BG, LINE, MUTED, NEON_LINE, PANEL_RADIUS, ROW_PX, TEXT,
 } from './theme'
 import type { Kind } from './theme'
 
@@ -31,7 +31,7 @@ const cardCss = (h: number): string => {
 }
 
 /** What the card's keepwarm strip says, already worded: the state, its stop reason if any, the ping and cold-write tallies. */
-export type KeepwarmCard = { state: string; note: string; pings: string; cold: string }
+export type KeepwarmCard = { tone: 'on' | 'off' | 'stopped'; state: string; note: string; pings: string; cold: string }
 
 const esc = (str: string): string => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const clip = (str: string, n: number): string => (str.length > n ? `${str.slice(0, n - 1)}…` : str)
@@ -134,25 +134,27 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
     return g
   }
 
-  const kwItems: Array<[string, string]> = [[t('card.keepwarm'), kw.state], [t('card.pings'), kw.pings], [t('card.coldWrites'), kw.cold]]
+  // The state is the one value in colour: coral while on, amber once stopped, quiet while off.
+  const kwFill = { on: HUE.warm, stopped: AMBER, off: MUTED }[kw.tone]
+  const kwItems: Array<[string, string, string]> = [[t('card.keepwarm'), kw.state, kwFill], [t('card.pings'), kw.pings, TEXT], [t('card.coldWrites'), kw.cold, TEXT]]
   const note = (x: number, y: number) => (kw.note ? txt(x, y, esc(clip(kw.note, 44)), { size: 11, w: 500 }) : '')
 
   // The strip under the zones: the keepwarm state and the two tallies, in columns where there is room.
   const stripColumns = (y: number, xs: number[]) =>
-    kwItems.map(([label, value], i) => txt(xs[i] ?? 0, y + 22, label, { ls: 1.4 }) + txt(xs[i] ?? 0, y + 44, esc(value), { size: 17, w: 600, fill: TEXT })).join('') +
+    kwItems.map(([label, value, fill], i) => txt(xs[i] ?? 0, y + 22, label, { ls: 1.4 }) + txt(xs[i] ?? 0, y + 44, esc(clip(value, 30)), { size: 17, w: 600, fill })).join('') +
     note(xs[0] ?? 0, y + 58)
 
   // The same three facts on a single line: label and value share a baseline, flowing as tspans.
   const stripSlim = (y: number, xs: number[]) =>
     kwItems
       .map(
-        ([label, value], i) =>
-          `<text x="${xs[i] ?? 0}" y="${y + 19}" font-weight="700"><tspan font-size="11" fill="${MUTED}" letter-spacing="1.4">${label}</tspan><tspan font-size="14" font-weight="600" fill="${TEXT}" dx="8">${esc(value)}</tspan></text>`,
+        ([label, value, fill], i) =>
+          `<text x="${xs[i] ?? 0}" y="${y + 19}" font-weight="700"><tspan font-size="11" fill="${MUTED}" letter-spacing="1.4">${label}</tspan><tspan font-size="14" font-weight="600" fill="${fill}" dx="8">${esc(clip(value, 24))}</tspan></text>`,
       )
       .join('')
 
   const stripRows = (y: number) =>
-    kwItems.map(([label, value], i) => txt(13, y + 20 + i * 26, label, { ls: 1.4 }) + txt(W - 13, y + 20 + i * 26, esc(value), { size: 15, w: 600, fill: TEXT, anchor: 'end' })).join('') +
+    kwItems.map(([label, value, fill], i) => txt(13, y + 20 + i * 26, label, { ls: 1.4 }) + txt(W - 13, y + 20 + i * 26, esc(clip(value, 30)), { size: 15, w: 600, fill, anchor: 'end' })).join('') +
     note(13, y + KW_H_ROWS)
 
   let H: number
@@ -190,10 +192,10 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
       stripRows(H)
     H += KW_H_ROWS + (kw.note ? KW_NOTE_H : 0)
   }
-  const h = H + CARD_TOP
+  const h = Math.ceil((H + CARD_TOP) / ROW_PX) * ROW_PX
   const body =
     defs +
-    `<rect width="${W}" height="${h}" fill="${CARD_BG}"/><g transform="translate(0 ${CARD_TOP})">` +
+    `<path d="M0 0H${W}V${h - PANEL_RADIUS}A${PANEL_RADIUS} ${PANEL_RADIUS} 0 0 1 ${W - PANEL_RADIUS} ${h}H${PANEL_RADIUS}A${PANEL_RADIUS} ${PANEL_RADIUS} 0 0 1 0 ${h - PANEL_RADIUS}Z" fill="${BG}"/><g transform="translate(0 ${CARD_TOP})">` +
     hline(0) +
     g +
     '</g>' +

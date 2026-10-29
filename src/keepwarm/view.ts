@@ -33,9 +33,14 @@ export const kwValue = (f: KeepwarmFacts | null, now: number): { text: string; s
 /** The card's keepwarm strip: state, why it stopped, pings sent and their estimated cost, cold writes paid. */
 export const kwCard = (f: KeepwarmFacts | null, now: number): KeepwarmCard => {
   const v = kwValue(f, now)
+  // The next ping, when the engine already knows it: 50 minutes (or its period) after the last request or ping, inside the window.
+  const since = Math.max(f?.lastRequestAt ?? 0, f?.last?.at ?? 0)
+  const next = f && since > 0 ? since + f.every : 0
+  const hasNext = v.tone === 'on' && next > now && (f?.always || next < (f?.deadline ?? 0))
   return {
-    state: v.text,
-    note: v.tone === 'stopped' ? (f?.stopped ?? '') : '',
+    tone: v.tone,
+    state: v.tone === 'on' ? (f?.always ? t('card.kwAlways') : t('card.kwOn', { text: v.text })) : v.tone === 'stopped' ? t('card.kwStopped', { why: f?.stopped ?? v.text }) : v.text,
+    note: hasNext ? t('card.kwNext', { time: until(next, now) }) : '',
     pings: `${f?.pings ?? 0} · ~${fmtUsd(f?.pingUsd ?? 0)}`,
     cold: `${f?.coldWrites ?? 0} · ${fmtUsd(f?.coldUsd ?? 0)}`,
   }

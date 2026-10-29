@@ -524,18 +524,6 @@ export function freshState(options: { window?: number; guardOn?: boolean } = {})
 type Ev<N extends keyof Events> = Parameters<Events[N]>[1]
 type Nx<N extends keyof Events> = Parameters<Events[N]>[2]
 
-/** The band's button when keepwarm is off: what /keepwarm with no argument does. */
-export async function armKeepwarm($: EngineInterface, s: State) {
-  await reseat($, s)
-  await startWindow($, s, s.window, PING_AFTER_MS)
-}
-
-/** The band's button when keepwarm is armed: what /keepwarm off does. */
-export async function disarmKeepwarm($: EngineInterface, s: State) {
-  await reseat($, s)
-  await stop($, s, null, true)
-}
-
 export async function sessionStart(s: State, $: EngineInterface, e: Ev<'session.start'>, next: Nx<'session.start'>) {
   const r = await next(e)
   const now = await seat($, s)

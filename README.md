@@ -10,9 +10,9 @@ Warm and frozen netrunner, at 4x: ![warm](assets/preview/mascot-warm-4x.png) ![c
 
 ## What you see
 
-- Usage: one bar per window (7D violet, 5H light grey) showing how much is left, with the percent and the time to reset. A window under 15% turns red and adds LOW. The terminal keeps dots.
+- Usage: one bar per window (7D violet, 5H teal) showing how much is left, with the percent and the time to reset. A window under 15% turns red and adds LOW. The terminal keeps dots.
 - Cache: after the first reply, WARM for an hour after the last request, then COLD with the price of re-caching. The netrunner is lit with rising sparks while warm and frozen under ice while cold. The Show / Hide button opens a card with the idle time, the context size and the cost by model; it only opens when it fits the rows the band may take, and short of room its keepwarm strip folds to one line.
-- Keepwarm: next to the cache chip, `KEEPWARM until 18:30`, `KEEPWARM always`, `KEEPWARM stopped` or a quiet `keepwarm off`. A button arms it (`Arm 6h`) or disarms it. The card adds the pings sent with their estimated cost and the cold writes paid this session.
+- Keepwarm: a small select in the row, `KW Off`, `90m`, your window (6h), `12h` or `Always`, each doing what the `/keepwarm` command of that name does. The open card says the state in colour (`on until 18:30` with the next ping, `always on`, `stopped: <why>`, `off`), the pings sent with their estimated cost and the cold writes paid this session.
 - Narrow bands and the terminal use short forms (`KW 18:30`, `KW off`). The terminal draws text only, with no drawings and no card.
 
 ## Install

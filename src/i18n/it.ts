@@ -37,6 +37,11 @@ export const it: Record<Key, string> = {
   'kw.arm': 'Arma {window}',
   'kw.disarm': 'Disarma',
   'kw.on': 'On',
+  'kw.select.always': 'Sempre',
+  'card.kwOn': 'attivo {text}',
+  'card.kwAlways': 'sempre attivo',
+  'card.kwStopped': 'fermo: {why}',
+  'card.kwNext': 'prossimo ping ~{time}',
   'kw.offButton': 'Off',
 
   'card.idle': 'INATTIVA',

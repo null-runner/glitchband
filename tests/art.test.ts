@@ -6,11 +6,11 @@ import { en } from '../src/i18n/en'
 import { it } from '../src/i18n/it'
 import { CHIP_WIDTHS, MASCOT_PIX, REDUCED_MOTION, barSvg, chipSvg, justPinged, mascotShapes, mascotSvg } from '../src/ui/art'
 import { cardSvg } from '../src/ui/card'
-import { BAR_GROW_MS, BAR_H, BAR_SHINE_OPACITY, BAR_W, CARD_BAR_STAGGER_MS, CARD_SCAN_OPACITY, EMPTY, HUE, ICE, MASCOT, PING_GLITCH_WINDOW_MS, SEVEN_DAY } from '../src/ui/theme'
+import { BAR_DOTS, BAR_DOT_R, BAR_GROW_MS, BAR_H, BAR_SHINE_OPACITY, BAR_W, CARD_BAR_STAGGER_MS, CARD_SCAN_OPACITY, EMPTY, HUE, ICE, MASCOT, PING_GLITCH_WINDOW_MS, SEVEN_DAY } from '../src/ui/theme'
 import { answerSession } from './answers'
 import { testEn as test } from './lang'
 
-const KW = { state: 'Keepwarm off.', note: '', pings: '0 · ~$0.00', cold: '0 · $0.00' }
+const KW = { tone: 'off' as const, state: 'Keepwarm off.', note: '', pings: '0 · ~$0.00', cold: '0 · $0.00' }
 const view = (mode: 'warm' | 'cold'): CacheView => ({ mode, idle: '18m', idleMin: 18, tokens: 770000, window: 1000000, mine: 'opus' })
 
 test('the mascot is a 16 by 16 pixel grid', () => {
@@ -54,12 +54,17 @@ test('a usage bar draws the share left on a track, grows once, and its shine sta
   expect(bar).toContain(`fill="${SEVEN_DAY}"`)
   expect(bar).toContain(`animation:b-grow ${BAR_GROW_MS}ms`)
   expect(bar).toContain('class="b-shine"')
-  expect(BAR_SHINE_OPACITY).toBeLessThanOrEqual(0.18)
+  expect(BAR_SHINE_OPACITY).toBeGreaterThanOrEqual(0.35)
+  expect(BAR_SHINE_OPACITY).toBeLessThanOrEqual(0.45)
   expect(bar).toContain(`stop-opacity="${BAR_SHINE_OPACITY}"`)
   expect(bar).toContain(REDUCED_MOTION)
   expect(barSvg(100, SEVEN_DAY)).toContain(`class="b-fill" width="${BAR_W}"`)
   expect(barSvg(2, SEVEN_DAY)).toContain(`class="b-fill" width="${BAR_H}"`)
   expect(barSvg(0, SEVEN_DAY)).not.toContain('class="b-fill"')
+  // A few light dots drift along the filled part; a short fill carries none.
+  expect(bar.match(/class="b-dot"/g)).toHaveLength(BAR_DOTS)
+  expect(bar).toContain(`r="${BAR_DOT_R}"`)
+  expect(barSvg(5, SEVEN_DAY)).not.toContain('b-dot"')
 })
 
 test('a ping makes the mascot glitch: RGB copies and a jitter, three times of 120ms', () => {

@@ -72,21 +72,23 @@ test('an invalid value falls back to its default', () => {
   expect(readOptions({ keepwarmWindow: '0m' }).keepwarmWindow.ms).toBe(6 * HOUR)
 })
 
-test('keepwarmWindow is what the button and a bare /keepwarm arm, and the button says it', { options: { keepwarmWindow: '90m' } }, async ($, on) => {
+test('keepwarmWindow is the configured entry of the select, once, and a pick arms it', { options: { keepwarmWindow: '90m' } }, async ($, on) => {
   await resumedCold($, on)
   const band = await $.ui.mount({ plugin: 'glitchband', surface: 'desktop', component: 'AbovePrompt', props: { ...PROPS, bodyColumns: 160 } })
-  expect((await band.find({ key: 'keepwarm-toggle' }))?.props.label).toBe('Arm 90m')
-  await band.press({ key: 'keepwarm-toggle' })
+  const select = await band.find({ key: 'keepwarm-select' })
+  expect((select?.props.options as Array<{ value: string }>).map(o => o.value)).toEqual(['off', '90m', '12h', 'always'])
+  await band.select({ key: 'keepwarm-select', value: '90m' })
   const until = new Date(NOW + 1.5 * HOUR)
   const hm = `${String(until.getHours()).padStart(2, '0')}:${String(until.getMinutes()).padStart(2, '0')}`
   expect(await band.find({ text: `until ${hm}` })).toBeDefined()
   await band.unmount()
 })
 
-test('an invalid keepwarmWindow shows the 6h default on the button', { options: { keepwarmWindow: 'soon' } }, async ($, on) => {
+test('an invalid keepwarmWindow puts the 6h default in the select', { options: { keepwarmWindow: 'soon' } }, async ($, on) => {
   await resumedCold($, on)
   const band = await $.ui.mount({ plugin: 'glitchband', surface: 'desktop', component: 'AbovePrompt', props: { ...PROPS, bodyColumns: 160 } })
-  expect((await band.find({ key: 'keepwarm-toggle' }))?.props.label).toBe('Arm 6h')
+  const select = await band.find({ key: 'keepwarm-select' })
+  expect((select?.props.options as Array<{ value: string }>).map(o => o.value)).toEqual(['off', '90m', '6h', '12h', 'always'])
   await band.unmount()
 })
 

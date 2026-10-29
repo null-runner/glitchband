@@ -36,6 +36,11 @@ export const en = {
   'kw.disarm': 'Disarm',
   'kw.on': 'On',
   'kw.offButton': 'Off',
+  'kw.select.always': 'Always',
+  'card.kwOn': 'on {text}',
+  'card.kwAlways': 'always on',
+  'card.kwStopped': 'stopped: {why}',
+  'card.kwNext': 'next ping ~{time}',
 
   'card.idle': 'IDLE',
   'card.warmHour': 'warm 1h',

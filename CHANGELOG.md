@@ -4,7 +4,9 @@
 
 - Restyle in step with Claude Desktop: a neutral warm-grey palette with one violet, Claude coral for WARM and ice blue for COLD. No magenta, pink or lilac.
 - Usage bars instead of dots on the desktop: a rounded bar of what is left with a faint shine and a one-time grow. The terminal keeps dots.
-- Buttons: keepwarm is a primary button while armed, secondary with a coral hover otherwise; Show / Hide is secondary with a hover in the cache colour.
+- One dark panel: the card shares the band's colour (no grey card), has rounded lower corners, and the row has room around its contents. The wide row is sized in pixels from its text and gives up the reset times, then shortens its bars, before anything is cut.
+- Keepwarm is a `Select` (Off, 90m, your window, 12h, Always) in place of the arm/disarm button; the row no longer shows keepwarm text when compact. The card shows the state in colour with the next ping. Show / Hide stays a secondary button with a hover in the cache colour.
+- 5H is teal; the bars have a visible shine and a few drifting light dots; the card scanline is almost gone.
 - A new mascot: a lit netrunner with rising sparks when warm, frozen under a sheet of ice with icicles when cold.
 - The open card is sized in rows and kept inside `maxRows`: it drops to a one-line keepwarm strip, then stays folded, rather than make the band scroll. It is drawn with an explicit width and height.
 - The `language` option now defaults to `en` (`auto` and `it` stay).
