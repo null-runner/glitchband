@@ -1,0 +1,63 @@
+{
+  "name": "glitchband",
+  "version": "0.1.0",
+  "description": "A band above the prompt: 7-day and 5-hour usage, prompt cache WARM or COLD with the price of the next message, and keepwarm to hold the cache.",
+  "author": {
+    "name": "null-runner",
+    "url": "https://github.com/null-runner"
+  },
+  "homepage": "https://github.com/null-runner/glitchband",
+  "repository": "https://github.com/null-runner/glitchband",
+  "license": "MIT",
+  "keywords": [
+    "usage",
+    "rate-limit",
+    "prompt-cache",
+    "keepwarm",
+    "cost",
+    "mod",
+    "claude-code"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "auto follows Claude Code's language setting, then the system locale; en or it",
+      "default": "auto",
+      "options": [
+        "auto",
+        "en",
+        "it"
+      ]
+    },
+    "compactBelow": {
+      "type": "number",
+      "title": "Compact below (columns)",
+      "description": "Under this many columns the wide row drops the word left and folds keepwarm into its button",
+      "default": 110,
+      "min": 40,
+      "max": 400
+    },
+    "cardScale": {
+      "type": "number",
+      "title": "Card text scale",
+      "description": "How much larger the cache card's text reads; 1 is the plain layout",
+      "default": 1.3,
+      "min": 0.5,
+      "max": 3
+    },
+    "keepwarmWindow": {
+      "type": "string",
+      "title": "Keepwarm window",
+      "description": "What the band button and a bare /keepwarm arm, as hours and minutes: 6h, 90m, 2h30m",
+      "default": "6h"
+    },
+    "coldGuard": {
+      "type": "boolean",
+      "title": "Cold-send guard",
+      "description": "Hold back a message sent on a cold cache once, with its price; off lets it through untouched",
+      "default": true
+    }
+  }
+}

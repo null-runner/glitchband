@@ -1,0 +1,19 @@
+{
+  "name": "glitchband",
+  "owner": {
+    "name": "null-runner",
+    "url": "https://github.com/null-runner"
+  },
+  "metadata": {
+    "description": "null-runner's Claude Code mods."
+  },
+  "plugins": [
+    {
+      "name": "glitchband",
+      "source": "./",
+      "description": "Mod: band above the prompt with 7D/5H usage, prompt cache WARM or COLD, the price of the next message and keepwarm.",
+      "version": "0.1.0",
+      "category": "mod"
+    }
+  ]
+}
