@@ -125,7 +125,7 @@ export const PAD_PX = 12
 /** The desktop's pixels a band row stands for, read off a real screenshot (a 2-row band measured about 50 px; no doc gives it). A card is padded to whole rows and kept under maxRows with this. */
 export const ROW_PX = 25
 /** Rows the band's own lines take above the card, by layout: the row with the mascot, plus the keepwarm row and the stacked blocks of the narrower ones. */
-/** Rows kept free for another mod's band stacked beneath: a status row with a button or two. */
+/** Rows always kept free for other mods' bands: one stacked by a mod loaded before glitchband sits outside its tree, unseen, so the room is kept whether or not a band shows. */
 export const BELOW_ROWS = 2
 export const HEAD_ROWS: Record<Kind, number> = { wide: 2, stacked: 6, tight: 8 }
 

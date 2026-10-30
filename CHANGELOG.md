@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+
+- The cache card always keeps two rows free: a mod loaded before glitchband can stack its row under the card where glitchband can't see it, and the band scrolled.
+
 ## 0.1.4
 
 - With another mod's band stacked beneath, the cache card keeps two rows free for it and folds when it can't, so the band no longer scrolls.

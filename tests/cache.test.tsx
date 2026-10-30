@@ -153,7 +153,8 @@ test('an open card stays inside maxRows with the one-line strip, else no card an
 
   const draw = (maxRows: number) =>
     $.ui.mount({ plugin: 'glitchband', surface: 'desktop', component: 'AbovePrompt', props: { ...PROPS, bodyColumns: 140, maxRows, scroll: { offset: 0, bodyRows: maxRows } } })
-  const full = await draw(12)
+  // Two rows always stay free for other mods' bands.
+  const full = await draw(14)
   const { card: c12, rows: r12 } = await rowsOf(full)
   expect(c12).toBeDefined()
   expect(r12).toBeLessThanOrEqual(12)
@@ -162,11 +163,16 @@ test('an open card stays inside maxRows with the one-line strip, else no card an
   expect(String(c12?.props.source)).toContain('width="950" height="200"')
   await full.unmount()
 
-  const ten = await draw(10)
+  const ten = await draw(12)
   const { card: c10, rows: r10 } = await rowsOf(ten)
   expect(r10).toBeLessThanOrEqual(10)
   expect(Number(c10?.props.height)).toBe(200)
   await ten.unmount()
+
+  // Alone too: a band stacked by a mod loaded earlier would not be seen.
+  const tight = await draw(10)
+  expect((await rowsOf(tight)).card).toBeUndefined()
+  await tight.unmount()
 
   const none = await draw(5)
   expect((await rowsOf(none)).card).toBeUndefined()
