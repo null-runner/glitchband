@@ -1,5 +1,6 @@
 import type { Register } from 'claude-code'
 
+import { trackTtl } from '../src/cache/ttl'
 import { clearCache, finishTurn, seedCache, setContext, stampRequest } from '../src/cache/cache'
 import { resolveLanguage, setLanguage } from '../src/i18n'
 import { glitchbandCommand, keepwarmCommand, registerCommands } from '../src/keepwarm/commands'
@@ -59,7 +60,10 @@ export const register: Register = (on, raw) => {
 
   on('turn.complete', async ($, e, next) => {
     const r = await turnComplete(kwState, $, e, next)
-    if (!e.agentId) await finishTurn($, e.durationMs, e.usage?.model ?? null)
+    if (!e.agentId) {
+      await finishTurn($, e.durationMs, e.usage?.model ?? null)
+      await trackTtl($, kwState)
+    }
     return r
   })
 

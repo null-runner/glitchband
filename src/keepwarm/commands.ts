@@ -1,10 +1,11 @@
 import type { EngineInterface, Events } from 'claude-code'
 
 import { TTL_MS } from '../cache/cache'
+
 import { fmtInt, t } from '../i18n'
 import {
-  DEFAULT_WINDOW_MS, KEY_ALWAYS, KEY_GUARD, MIN_PING_MS, PING_AFTER_MS, armedText, breakEvenPings, coldUsd, fmtDuration, fmtUsd,
-  isCold, leftText, mayBeCold, parseDuration, reseat, startWindow, statusText, stop, warmUsd,
+  DEFAULT_WINDOW_MS, KEY_ALWAYS, KEY_GUARD, MIN_PING_MS, armedText, breakEvenPings, coldUsd, fmtDuration, fmtUsd,
+  isCold, leftText, mayBeCold, parseDuration, pingAfterMs, reseat, startWindow, statusText, stop, warmUsd,
 } from './engine'
 import type { State } from './engine'
 
@@ -45,28 +46,28 @@ export async function keepwarmCommand(s: State, $: EngineInterface, e: RunEvent)
   if (words[0] === 'always') {
     s.always = true
     await $.store.set(KEY_ALWAYS, true)
-    await startWindow($, s, DEFAULT_WINDOW_MS, PING_AFTER_MS)
+    await startWindow($, s, DEFAULT_WINDOW_MS, pingAfterMs(s.ttlMs))
     const cold = isCold(s, now) ? t('cmd.keepwarm.coldSuffix', { every: fmtDuration(s.every) }) : ''
     return { text: t('cmd.keepwarm.always', { hold: fmtDuration(DEFAULT_WINDOW_MS), cold }) }
   }
   if (!words.length) {
-    await startWindow($, s, s.window, PING_AFTER_MS)
+    await startWindow($, s, s.window, pingAfterMs(s.ttlMs))
     return { text: armedText(s, now, s.window) }
   }
   if (words[0] !== 'status') {
     const window = parseDuration(words[0] ?? '')
     if (!window) return { text: t('cmd.keepwarm.usage') }
     // "every 2m" is a testing knob and lasts only for the window it was given with.
-    let every = PING_AFTER_MS
+    let every = pingAfterMs(s.ttlMs)
     if (words[1] === 'every') {
       const period = parseDuration(words[2] ?? '')
-      // A period of the cache's whole hour or more would fire only once the cache is already cold.
-      if (period == null || period < MIN_PING_MS || period >= TTL_MS) return { text: t('cmd.keepwarm.everyRange') }
+      // A period of the cache's whole life or more would fire only once the cache is already cold.
+      if (period == null || period < MIN_PING_MS || period >= s.ttlMs) return { text: t('cmd.keepwarm.everyRange', { max: fmtDuration(s.ttlMs - MIN_PING_MS) }) }
       every = period
     }
     await startWindow($, s, window, every)
-    const rolls = s.always && (window < DEFAULT_WINDOW_MS || every !== PING_AFTER_MS)
-    return { text: armedText(s, now, window) + (rolls ? t('cmd.keepwarm.rolls', { hold: fmtDuration(DEFAULT_WINDOW_MS), every: fmtDuration(PING_AFTER_MS) }) : '') }
+    const rolls = s.always && (window < DEFAULT_WINDOW_MS || every !== pingAfterMs(s.ttlMs))
+    return { text: armedText(s, now, window) + (rolls ? t('cmd.keepwarm.rolls', { hold: fmtDuration(DEFAULT_WINDOW_MS), every: fmtDuration(pingAfterMs(s.ttlMs)) }) : '') }
   }
   return { text: statusText(s, now) ?? t('cmd.keepwarm.off') }
 }
@@ -76,10 +77,11 @@ function card(s: State, now: number): string {
   const lines: string[] = []
   lines.push(s.lastModel ?? t('cmd.noModel'))
   if (s.compacted) lines.push(t('cmd.state.compacted'))
-  else if (s.resumedAt) lines.push(mayBeCold(s, now) ? t('cmd.state.unknown') : t('cmd.state.resumed', { time: fmtDuration(s.resumedAt + TTL_MS - now) }))
+  else if (s.resumedAt) lines.push(mayBeCold(s, now) ? t('cmd.state.unknown') : t('cmd.state.resumed', { time: fmtDuration(s.resumedAt + s.ttlMs - now) }))
   else if (!s.lastRequestAt) lines.push(t('cmd.state.none'))
   else if (isCold(s, now)) lines.push(t('cmd.state.cold', { ago: fmtDuration(now - s.lastRequestAt) }))
-  else lines.push(t('cmd.state.warm', { time: fmtDuration(s.lastRequestAt + TTL_MS - now) }))
+  else lines.push(t('cmd.state.warm', { time: fmtDuration(s.lastRequestAt + s.ttlMs - now) }))
+  lines.push(t(s.ttlSeen ? 'cmd.ttl.seen' : 'cmd.ttl.assumed', { ttl: s.ttlMs >= TTL_MS ? `${s.ttlMs / TTL_MS}${t('unit.h')}` : `${s.ttlMs / 60000}${t('unit.m')}` }))
   lines.push(t('cmd.context', { tokens: fmtInt(s.ctx) }))
   lines.push(t('cmd.coldCost', { cold: fmtUsd(coldUsd(s)), warm: fmtUsd(warmUsd(s)) }))
   const always = s.always ? t('cmd.always') : ''

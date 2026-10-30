@@ -2168,3 +2168,24 @@ describe('a managed plugin above the user tier', () => {
     expect((await $.command.run(run('glitchband', ''))).text).toMatch(/session     0 cold writes paid/)
   })
 })
+
+describe('a 5-minute cache', () => {
+  const tail = JSON.stringify({ type: 'assistant', message: { usage: { cache_creation: { ephemeral_1h_input_tokens: 0, ephemeral_5m_input_tokens: 900 } } } })
+
+  test('pings shortly before it expires, not after 50 minutes', async ($, on) => {
+    const clock = mockClock(on, { now: START })
+    const w = world(on, [warm])
+    on('env.get', (_, e) => ({ value: e.name === 'HOME' ? '/home/u' : undefined }))
+    on('fs.list', () => ({ value: [{ name: '-work', kind: 'dir' as const, size: 0, mtimeMs: 0, isLink: false }] }))
+    on('fs.exists', (_, e) => ({ value: e.path === '/home/u/.claude/projects/-work/S1.jsonl' }))
+    on('process.run', () => ({ value: { exitCode: 0, stdout: tail, stderr: '' } }))
+    await $.session.start({ ...session, surface: 'terminal', isInteractive: true })
+    await $.turn.complete(turn())
+    await $.command.run(run('keepwarm', '1h'))
+    await clock.advance(3 * MIN + 44 * 1000)
+    expect(w.forks.length).toBe(0)
+    await clock.advance(1000)
+    expect(w.forks.length).toBe(1)
+    expect((await $.command.run(run('keepwarm', '2h every 5m'))).text).toBe('every takes a period from 1m to 4m')
+  })
+})

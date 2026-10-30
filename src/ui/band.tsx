@@ -1,6 +1,6 @@
 import type { EngineInterface, MatchedHook } from 'claude-code'
 
-import { TTL_MIN, costOf, mineModel, readCache, readFold, toggleFold, usd, viewOf } from '../cache/cache'
+import { costOf, mineModel, readCache, readFold, toggleFold, usd, viewOf } from '../cache/cache'
 import { keepwarmCommand } from '../keepwarm/commands'
 import { parseDuration, readKeepwarm } from '../keepwarm/engine'
 import type { State } from '../keepwarm/engine'
@@ -21,7 +21,7 @@ import {
 // 5-hour, as a bar (dots in the terminal); 7D is violet, 5H light grey; a window under 15% adds a red LOW.
 //
 // After the first reply it also shows the prompt cache: WARM (coral, netrunner
-// lit with sparks) for an hour after the last request, then COLD (ice blue, netrunner frozen) with what the
+// lit with sparks) until the cache's lifetime (1 hour or 5 minutes) passes, then COLD (ice blue, netrunner frozen) with what the
 // next message costs to re-cache. Hide / Show folds the card; warm starts folded,
 // cold starts open, and a choice holds until the cache flips. Zero token cost:
 // it reads the engine's own figures and draws.
@@ -216,9 +216,9 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
     ? [
         <Text key="idle" color={hue} bold>{` ${view.idle}`}</Text>,
         mine ? <Text key="dot" color={MUTED}> · </Text> : null,
-        mine ? <Text key="cost" color={TEXT} bold>{usd(costOf(mine, mode, view.tokens))}</Text> : null,
+        mine ? <Text key="cost" color={TEXT} bold>{usd(costOf(mine, mode, view.tokens, view.ttlMin * 60000))}</Text> : null,
       ]
-    : [<Text key="left" color={hue} bold>{` ${Math.max(0, TTL_MIN - view.idleMin)}${t('unit.m')}${compact ? '' : ` ${t('band.left')}`}`}</Text>]
+    : [<Text key="left" color={hue} bold>{` ${Math.max(0, view.ttlMin - view.idleMin)}${t('unit.m')}${compact ? '' : ` ${t('band.left')}`}`}</Text>]
 
   const button = fits ? (
     <Box key="fold" flexShrink={0} alignItems="center">
@@ -280,10 +280,10 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
         {open ? null : (
           <Box key="block" flexDirection="column" flexShrink={0} marginRight={2}>
             <Box flexDirection="row" alignItems="center">{badge}</Box>
-            <Text color={hue} bold>{cold ? t('band.idle', { time: view.idle }) : `${Math.max(0, TTL_MIN - view.idleMin)}${t('unit.m')} ${t('band.left')}`}</Text>
+            <Text color={hue} bold>{cold ? t('band.idle', { time: view.idle }) : `${Math.max(0, view.ttlMin - view.idleMin)}${t('unit.m')} ${t('band.left')}`}</Text>
             {mine ? (
               <Box flexDirection="row">
-                <Text color={TEXT} bold>{usd(costOf(mine, mode, view.tokens))}</Text>
+                <Text color={TEXT} bold>{usd(costOf(mine, mode, view.tokens, view.ttlMin * 60000))}</Text>
                 <Text color={MUTED}>{` ${t('band.next')}`}</Text>
               </Box>
             ) : null}

@@ -11,7 +11,7 @@ Warm and frozen netrunner, at 4x: ![warm](assets/preview/mascot-warm-4x.png) ![c
 ## What you see
 
 - Usage: one bar per window (7D violet, 5H teal) showing how much is left, with the percent and the time to reset. A window under 15% turns red and adds LOW. The terminal keeps dots.
-- Cache: after the first reply, WARM for an hour after the last request, then COLD with the price of re-caching. The netrunner is lit with rising sparks while warm and frozen under ice while cold. The Show / Hide button opens a card with the idle time, the context size and the cost by model; it only opens when it fits the rows the band may take, and short of room its keepwarm strip folds to one line.
+- Cache: after the first reply, WARM until the cache expires, then COLD. The lifetime (1 hour or 5 minutes) is read from the chat's transcript; 1 hour when it can't be read. COLD comes with the price of re-caching. The netrunner is lit with rising sparks while warm and frozen under ice while cold. The Show / Hide button opens a card with the idle time, the context size and the cost by model; it only opens when it fits the rows the band may take, and short of room its keepwarm strip folds to one line.
 - Keepwarm: a small select in the row, `KW Off`, `90m`, your window (6h), `12h` or `Always`, each doing what the `/keepwarm` command of that name does. The open card says the state in colour (`on until 18:30` with the next ping, `always on`, `stopped: <why>`, `off`), the pings sent with their estimated cost and the cold writes paid this session.
 - Narrow bands and the terminal use short forms (`KW 18:30`, `KW off`). The terminal draws text only, with no drawings and no card.
 
@@ -62,7 +62,7 @@ A value outside its range, or of the wrong type, falls back to its default.
 
 ## What the pings cost
 
-Each ping is one request to the model on the session transcript, sent after 50 minutes of inactivity inside the armed window. It costs a cache read plus an answer of a few words. The cost is estimated with list prices kept in the code (`PRICES` in `src/keepwarm/engine.ts`) and summed on the card. Keepwarm stops by itself when a ping reads nothing or writes more than 10% of what it reads. On a subscription the dollars are a yardstick, not a bill. The mod makes no network calls of its own.
+Each ping is one request to the model on the session transcript, sent inside the armed window: 50 minutes after inactivity for a 1-hour cache, 75 seconds before expiry for a 5-minute one. It costs a cache read plus an answer of a few words. The cost is estimated with list prices kept in the code (`PRICES` in `src/keepwarm/engine.ts`) and summed on the card. Keepwarm stops by itself when a ping reads nothing or writes more than 10% of what it reads. On a subscription the dollars are a yardstick, not a bill. The mod makes no network calls of its own.
 
 ## Credits
 

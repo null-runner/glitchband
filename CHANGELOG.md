@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- The cache's lifetime (1 hour or 5 minutes) is read from the chat's transcript, and the WARM/COLD countdown, the re-cache price (2x or 1.25x input) and the keepwarm ping timing follow it. When it can't be read, 1 hour is assumed, as before.
+- `/glitchband` shows the lifetime and whether it was read or assumed.
+
 ## 0.1.1
 
 - Other mods' bands above the prompt now draw beneath glitchband instead of being hidden by it.

@@ -2,13 +2,19 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Events } from 'claude-code'
 
 import type { KeepwarmFacts, Ping } from '../../types'
-import { TTL_MS } from '../cache/cache'
+import { TTL_MS, writeMultiple } from '../cache/cache'
 import { fmtInt, t } from '../i18n'
 
 // Ported from cache-tax 2.3.1 (Karan Bansal, MIT). The behaviour is the original's; what changed is where it
 // shows: the facts below are published for the band instead of a status line.
 
 export const PING_AFTER_MS = 50 * 60 * 1000
+// A 5-minute cache is pinged 75 s before it expires: late enough to add almost nothing to the idle time it
+// holds, early enough that a slow fork still lands inside the cache's life.
+const PING_LEAD_MS = 75 * 1000
+
+/** How long after a request the default ping goes out, for a cache that lives this long. */
+export const pingAfterMs = (ttlMs: number): number => (ttlMs < TTL_MS ? ttlMs - PING_LEAD_MS : PING_AFTER_MS)
 export const MIN_PING_MS = 60 * 1000
 const MAX_RETRIES = 3
 const AUTO_WARM_MS = 3 * 60 * 60 * 1000
@@ -87,6 +93,10 @@ export type State = {
   stepWrites: StepWrites | null
   steps: number
   endingSid: string
+  /** How long the cache lives; 1 hour until the transcript says otherwise. */
+  ttlMs: number
+  /** Whether ttlMs was read from the transcript rather than assumed. */
+  ttlSeen: boolean
   /** What the button and a bare /keepwarm arm, from the keepwarmWindow option. */
   window: number
   /** Whether the cold-send guard is on, from the coldGuard option. */
@@ -96,13 +106,16 @@ export type State = {
 /** What this turn's main requests wrote before any compaction it saw, priced per request where the steps reported usage. */
 type StepWrites = { tokens: number; usd: number; priced: boolean }
 
-function priceOf(model: string | null, promptTokens: number): [number, number, number] | null {
+// The table's write column is the 1-hour rate; a 5-minute write is cheaper, so its column is scaled to 1.25x input.
+function priceOf(model: string | null, promptTokens: number, ttlMs = TTL_MS): [number, number, number] | null {
+  const scale = writeMultiple(ttlMs) / 2
+  const row = ([read, write, output]: [number, number, number]): [number, number, number] => [read, write * scale, output]
   const m = (model ?? '').toLowerCase().replace(/[\s.]+/g, '-')
   if (promptTokens > LONG_PROMPT_TOKENS) {
-    for (const [family, read, write, output] of LONG_PRICES) if (m.includes(family)) return [read, write, output]
+    for (const [family, read, write, output] of LONG_PRICES) if (m.includes(family)) return row([read, write, output])
   }
   for (const [family, read, write, output] of PRICES) {
-    if (typeof family === 'string' ? m.includes(family) : family.test(m)) return [read, write, output]
+    if (typeof family === 'string' ? m.includes(family) : family.test(m)) return row([read, write, output])
   }
   return null
 }
@@ -131,23 +144,23 @@ function fmtTok(n: number): string {
 }
 
 export function coldUsd(s: State): number | null {
-  const price = priceOf(s.lastModel, s.ctx)
+  const price = priceOf(s.lastModel, s.ctx, s.ttlMs)
   return price ? s.ctx * price[1] / 1e6 : null
 }
 
 export function warmUsd(s: State): number | null {
-  const price = priceOf(s.lastModel, s.ctx)
+  const price = priceOf(s.lastModel, s.ctx, s.ttlMs)
   return price ? s.ctx * price[0] / 1e6 : null
 }
 
-/** Everything a fork bills: the cache read, any cache write, uncached input at the base rate (half the 1h write rate), and the output. */
-function pingUsd(u: { input_tokens: number; output_tokens: number; cache_read_input_tokens: number; cache_creation_input_tokens: number }, price: [number, number, number]): number {
-  return (u.cache_read_input_tokens * price[0] + u.cache_creation_input_tokens * price[1] + u.input_tokens * price[1] / 2 + u.output_tokens * price[2]) / 1e6
+/** Everything a fork bills: the cache read, any cache write, uncached input at the base rate (the write rate over its multiple), and the output. */
+function pingUsd(u: { input_tokens: number; output_tokens: number; cache_read_input_tokens: number; cache_creation_input_tokens: number }, price: [number, number, number], ttlMs: number): number {
+  return (u.cache_read_input_tokens * price[0] + u.cache_creation_input_tokens * price[1] + u.input_tokens * price[1] / writeMultiple(ttlMs) + u.output_tokens * price[2]) / 1e6
 }
 
 /** The read-only upper bound: pings at the cache-read rate that cost as much as one cold write of the same context. */
 export function breakEvenPings(s: State): number | null {
-  const price = priceOf(s.lastModel, s.ctx)
+  const price = priceOf(s.lastModel, s.ctx, s.ttlMs)
   if (!price || s.ctx <= 0) return null
   return Math.floor(price[1] / price[0])
 }
@@ -155,19 +168,19 @@ export function breakEvenPings(s: State): number | null {
 type StatusFacts = Pick<KeepwarmFacts, 'deadline' | 'every' | 'lastRequestAt' | 'compacted' | 'waitForTurn' | 'retries' | 'stopped' | 'last'>
 
 export function isCold(s: Pick<KeepwarmFacts, 'lastRequestAt' | 'compacted'>, now: number): boolean {
-  return s.lastRequestAt > 0 && !s.compacted && now - s.lastRequestAt >= TTL_MS
+  return s.lastRequestAt > 0 && !s.compacted && now - s.lastRequestAt >= (s.ttlMs ?? TTL_MS)
 }
 
 /** The cache-write rate as the messages quote it: $20/MTok, or words when the model is not priced. */
 export function rateText(s: State): string {
-  const price = priceOf(s.lastModel, s.ctx)
+  const price = priceOf(s.lastModel, s.ctx, s.ttlMs)
   return price ? `$${price[1]}/MTok` : t('guard.rate')
 }
 
 function guardText(s: State, now: number): string {
   const warm = warmUsd(s)
   return t('guard.text', {
-    ago: fmtDuration(now - s.lastRequestAt - TTL_MS),
+    ago: fmtDuration(now - s.lastRequestAt - s.ttlMs),
     tokens: fmtInt(s.ctx),
     rate: rateText(s),
     cost: fmtUsd(coldUsd(s)),
@@ -220,7 +233,7 @@ export function seedFromResume(s: State, e: ResumeFields, now: number): string |
 
 /** A transcript resumed without the time of its last response: that response came after its first launch, so an hour after that launch the cache may be cold. */
 export function mayBeCold(s: State, now: number): boolean {
-  return s.resumedAt > 0 && !s.lastRequestAt && now - s.resumedAt >= TTL_MS
+  return s.resumedAt > 0 && !s.lastRequestAt && now - s.resumedAt >= s.ttlMs
 }
 
 /** The line for a resumed session whose last response time never arrived: the cache may be cold, and this is what that would cost. */
@@ -263,7 +276,7 @@ export async function readKeepwarm($: EngineInterface): Promise<KeepwarmFacts | 
 /** What the band reads: the window, the ping tally and the cold-write tally. */
 function factsOf(s: State): KeepwarmFacts {
   return {
-    deadline: s.deadline, every: s.every, always: s.always, lastRequestAt: s.lastRequestAt, compacted: s.compacted,
+    deadline: s.deadline, every: s.every, ttlMs: s.ttlMs, always: s.always, lastRequestAt: s.lastRequestAt, compacted: s.compacted,
     waitForTurn: s.waitForTurn, retries: s.retries, stopped: s.stopped, last: s.last, pings: s.pings, pingUsd: s.pingUsd,
     coldWrites: s.misses.length, coldUsd: s.misses.reduce((a, m) => a + (m.usd ?? 0), 0),
   }
@@ -277,6 +290,22 @@ async function clockTurn($: EngineInterface) {
 /** Hands the band the state as it stands; every change of the window or the tallies ends here. */
 async function publish($: EngineInterface, s: State) {
   await update($, keepwarm, () => factsOf(s))
+}
+
+/** The transcript said how long the cache lives: the default ping period follows it, and a window already armed is re-timed. */
+export async function setTtl($: EngineInterface, s: State, ttlMs: number) {
+  const changed = s.ttlMs !== ttlMs
+  const wasDefault = s.every === pingAfterMs(s.ttlMs)
+  s.ttlMs = ttlMs
+  s.ttlSeen = true
+  if (!changed) return
+  // A custom period that no longer fits inside the cache's life goes back to the default too.
+  if (wasDefault || s.every >= ttlMs) {
+    s.every = pingAfterMs(ttlMs)
+    if (s.sid) await $.store.delete(everyKey(s))
+  }
+  if (s.deadline) await arm($, s)
+  else await publish($, s)
 }
 
 /** Cancels the timer. Every new timer is set right after this, so the tick also says the schedule changed. */
@@ -317,7 +346,7 @@ export async function stop($: EngineInterface, s: State, why: string | null, for
     s.offs++
   }
   s.deadline = 0
-  s.every = PING_AFTER_MS
+  s.every = pingAfterMs(s.ttlMs)
   s.stopped = why
   s.retries = 0
   outdate(s)
@@ -342,7 +371,7 @@ async function endConversation($: EngineInterface, s: State, reason: 'clear' | '
   // id: the old id's keys go here, or a /keepwarm off there could never find them and the old session would re-arm them.
   if (reason === 'clear') {
     s.deadline = 0
-    s.every = PING_AFTER_MS
+    s.every = pingAfterMs(s.ttlMs)
     s.stopped = null
     s.retries = 0
   }
@@ -374,7 +403,7 @@ export async function reseat($: EngineInterface, s: State) {
   // seated under the old id, and a window opened meanwhile waits in memory for the id it belongs to.
   if (id === s.endingSid) return
   const now = await seat($, s, id)
-  if (s.always) await startWindow($, s, DEFAULT_WINDOW_MS, PING_AFTER_MS)
+  if (s.always) await startWindow($, s, DEFAULT_WINDOW_MS, pingAfterMs(s.ttlMs))
   // A window carried over, or armed while the conversation was ending, is written under this id.
   else if (s.deadline) await startWindow($, s, s.deadline - now, s.every)
   else await publish($, s)
@@ -392,7 +421,7 @@ async function arm($: EngineInterface, s: State) {
   if (now >= s.deadline) return stop($, s, null)
   // A cold window still needs expiry cleanup, but must not send a model request.
   if (s.lastRequestAt && !s.compacted && !isCold(s, now)) {
-    const untilCold = s.lastRequestAt + TTL_MS - now
+    const untilCold = s.lastRequestAt + s.ttlMs - now
     // Waiting for a turn sends nothing, but wakes when the cache goes cold so the row says so.
     if (s.waitForTurn) s.pending = $.clock.after(Math.min(s.deadline - now, untilCold), () => { void arm($, s) })
     else {
@@ -422,7 +451,7 @@ async function ping($: EngineInterface, s: State) {
   // A request since this timer was set moved the clock; schedule from it.
   if (now - s.lastRequestAt < s.every - 1000) return arm($, s)
   // A host that slept past a retry's slot must not send it inside the last minute.
-  if (s.retries && now >= s.lastRequestAt + TTL_MS - MIN_PING_MS) return stop($, s, s.retryReason + afterRetries(s.retries))
+  if (s.retries && now >= s.lastRequestAt + s.ttlMs - MIN_PING_MS) return stop($, s, s.retryReason + afterRetries(s.retries))
   const gen = s.gen
   const sentAt = s.lastRequestAt
   s.inFlight = true
@@ -447,7 +476,7 @@ async function ping($: EngineInterface, s: State) {
     // A busy or failing API is usually brief; retry while a ping can still land a minute before the cache goes cold.
     if (reply.reason === 'api-error' && (reply.status === null || reply.status === 429 || reply.status >= 500)) {
       const wait = MIN_PING_MS * 2 ** s.retries
-      if (s.retries < MAX_RETRIES && at + wait < Math.min(s.deadline, s.lastRequestAt + TTL_MS - MIN_PING_MS)) {
+      if (s.retries < MAX_RETRIES && at + wait < Math.min(s.deadline, s.lastRequestAt + s.ttlMs - MIN_PING_MS)) {
         s.retries++
         s.retryReason = reason
         // Replaces any timer set while the fork was out, such as a window extension's, so only the retry fires.
@@ -460,10 +489,10 @@ async function ping($: EngineInterface, s: State) {
     return stop($, s, reason + afterRetries(s.retries))
   }
   const u = reply.usage
-  const price = priceOf(s.lastModel, u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens)
+  const price = priceOf(s.lastModel, u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens, s.ttlMs)
   // A warm ping reads the prefix and writes only its own message; a write of a tenth of the read or more means the prefix broke.
   const warm = u.cache_read_input_tokens > 0 && u.cache_creation_input_tokens < 0.1 * u.cache_read_input_tokens
-  const usd = price ? pingUsd(u, price) : null
+  const usd = price ? pingUsd(u, price, s.ttlMs) : null
   s.last = { at: now, read: u.cache_read_input_tokens, write: u.cache_creation_input_tokens, usd, warm }
   s.pings++
   s.pingUsd += usd ?? 0
@@ -498,7 +527,7 @@ export async function startWindow($: EngineInterface, s: State, windowMs: number
   s.stopped = null
   // Unseated, between a conversation's end and the host reporting the next, the window has no id to be written under; the seat writes it.
   if (!s.sid) return arm($, s)
-  if (every === PING_AFTER_MS) await $.store.delete(everyKey(s))
+  if (every === pingAfterMs(s.ttlMs)) await $.store.delete(everyKey(s))
   else await $.store.set(everyKey(s), every)
   await $.store.set(deadlineKey(s), deadline)
   if (s.offs !== offs) {
@@ -515,7 +544,7 @@ export async function startWindow($: EngineInterface, s: State, windowMs: number
 export function freshState(options: { window?: number; guardOn?: boolean } = {}): State {
   return {
     window: options.window ?? DEFAULT_WINDOW_MS, guardOn: options.guardOn ?? true,
-    sid: '', deadline: 0, every: PING_AFTER_MS, always: false, lastRequestAt: 0, lastModel: null, ctx: 0, compacted: false,
+    sid: '', deadline: 0, every: PING_AFTER_MS, ttlMs: TTL_MS, ttlSeen: false, always: false, lastRequestAt: 0, lastModel: null, ctx: 0, compacted: false,
     resumedAt: 0, transcript: 0, guard: 'refuse', ackedAt: 0, coldWritePending: false, misses: [], pending: null, last: null, stopped: null,
     waitForTurn: false, retries: 0, retryReason: '', gen: 0, tick: 0, offs: 0, turnOffs: null, inFlight: false, stepWrites: null, steps: 0, endingSid: '', pings: 0, pingUsd: 0,
   }
@@ -532,11 +561,11 @@ export async function sessionStart(s: State, $: EngineInterface, e: Ev<'session.
   const savedEvery = await $.store.get(everyKey(s))
   const savedGuard = await $.store.get(KEY_GUARD)
   s.deadline = typeof saved === 'number' && saved > now ? saved : 0
-  s.every = typeof savedEvery === 'number' && savedEvery >= MIN_PING_MS && savedEvery < TTL_MS ? savedEvery : PING_AFTER_MS
+  s.every = typeof savedEvery === 'number' && savedEvery >= MIN_PING_MS && savedEvery < s.ttlMs ? savedEvery : pingAfterMs(s.ttlMs)
   s.guard = savedGuard === 'warn' ? 'warn' : 'refuse'
   s.always = (await $.store.get(KEY_ALWAYS)) === true
   // Always means a fresh default window every session, whatever the last one left behind.
-  if (s.always) await startWindow($, s, DEFAULT_WINDOW_MS, PING_AFTER_MS)
+  if (s.always) await startWindow($, s, DEFAULT_WINDOW_MS, pingAfterMs(s.ttlMs))
   // The classic start arms a restored window too, but a managed plugin above this tier may continue beneath it; arming twice leaves one timer.
   else if (s.deadline) await arm($, s)
   await publish($, s)
@@ -622,7 +651,7 @@ export async function* turnStep(s: State, $: EngineInterface, e: Ev<'turn.step'>
   // Each request's write is priced at its own prompt length's tier (Haiku 5.5 changes price at 100k), not the turn's sum.
   const u = r.usage
   if (!e.agentId && u && !s.compacted) {
-    const price = priceOf(u.model || e.model, u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens)
+    const price = priceOf(u.model || e.model, u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens, s.ttlMs)
     const was = s.stepWrites ?? { tokens: 0, usd: 0, priced: true }
     s.stepWrites = { tokens: was.tokens + u.cache_creation_input_tokens, usd: was.usd + (price ? u.cache_creation_input_tokens * price[1] / 1e6 : 0), priced: was.priced && price != null }
   }
@@ -654,7 +683,7 @@ export async function turnComplete(s: State, $: EngineInterface, e: Ev<'turn.com
   if (e.usage) {
     const shared = (await $.store.get(KEY_ALWAYS)) === true
     if (s.offs === offs) s.always = shared
-    if (s.always) await startWindow($, s, Math.max(DEFAULT_WINDOW_MS, s.deadline - now), PING_AFTER_MS, offs)
+    if (s.always) await startWindow($, s, Math.max(DEFAULT_WINDOW_MS, s.deadline - now), pingAfterMs(s.ttlMs), offs)
   }
   const u = e.usage
   if (u) {
@@ -674,7 +703,7 @@ export async function turnComplete(s: State, $: EngineInterface, e: Ev<'turn.com
     const full = prev > 20000 && write >= 0.5 * prev
     if (full || (s.coldWritePending && write > 0)) {
       // Priced per request when the steps reported usage; otherwise at the tier of the context the comeback re-sent.
-      const price = priceOf(s.lastModel, prev || s.ctx)
+      const price = priceOf(s.lastModel, prev || s.ctx, s.ttlMs)
       const usd = writes?.priced ? writes.usd : price ? write * price[1] / 1e6 : null
       s.misses.push({ at: now, tokens: write, usd })
       const extend = s.deadline < now + AUTO_WARM_MS && s.offs === offs

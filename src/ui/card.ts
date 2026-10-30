@@ -1,7 +1,7 @@
 // The cache card: an SVG laid out for the band's width. Pure; nothing here touches the engine.
 // Layout from ribbon 1.0.0 (Jay E | RoboNuggets, MIT); the keepwarm strip and the look are glitchband's.
 
-import { MODELS, TTL_MIN, coldCost, costOf, tok, usd } from '../cache/cache'
+import { MODELS, coldCost, costOf, tok, usd } from '../cache/cache'
 import type { CacheView } from '../cache/cache'
 import { t } from '../i18n'
 import { chipShapes, mascotCss, mascotShapes, svgDoc, wordOf } from './art'
@@ -74,7 +74,7 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
       g += txt(x, y + k.cap, t('card.warmHour'), { size: 12, w: 600, fill: FIRE })
       g += txt(x1 + 5, y + k.cap, t('card.coldNow'), { size: 12, w: 600, fill: ICE, anchor: 'end' })
     } else {
-      const now = x0 + (x1 - x0) * Math.min(1, v.idleMin / TTL_MIN)
+      const now = x0 + (x1 - x0) * Math.min(1, v.idleMin / v.ttlMin)
       // The bar runs from coral to violet, with a small glow on the "now" point.
       g += `<linearGradient id="gb-idle" gradientUnits="userSpaceOnUse" x1="${x0}" y1="0" x2="${Math.max(now, x0 + 1)}" y2="0"><stop offset="0" stop-color="${FIRE}"/><stop offset="1" stop-color="${NEON_LINE}"/></linearGradient>`
       g += `<line x1="${x0}" y1="${ly}" x2="${now}" y2="${ly}" stroke="url(#gb-idle)" stroke-width="5" stroke-linecap="round"/>`
@@ -82,7 +82,7 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
       for (let cx = now + 12; cx <= x1 - 12; cx += 9) g += `<circle cx="${cx}" cy="${ly}" r="2.2" fill="${EMPTY}"/>`
       g += `<circle cx="${x1}" cy="${ly}" r="4.5" fill="none" stroke="${ICE}" stroke-width="2"/>`
       g += txt(x, y + k.cap, t('card.lastReply'), { size: 12, w: 500 })
-      g += txt(x1 + 5, y + k.cap, t('card.coldIn', { time: `${Math.max(0, TTL_MIN - v.idleMin)}${t('unit.m')}` }), { size: 12, w: 600, fill: ICE, anchor: 'end' })
+      g += txt(x1 + 5, y + k.cap, t('card.coldIn', { time: `${Math.max(0, v.ttlMin - v.idleMin)}${t('unit.m')}` }), { size: 12, w: 600, fill: ICE, anchor: 'end' })
     }
     return g
   }
@@ -117,10 +117,10 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
       ? { lab: 24, base: 100, rows: 6, step: 7, chip: 58, price: 88, name: 102 }
       : { lab: 30, base: 116, rows: 8, step: 8, chip: 70, price: 104, name: 120 }
     let g = txt(x, y + k.lab, t(cold ? 'card.cost' : 'card.costCached'), { ls: 1.4 })
-    const top = Math.max(...MODELS.map(m => coldCost(m, v.tokens)))
+    const top = Math.max(...MODELS.map(m => coldCost(m, v.tokens, v.ttlMin * 60000)))
     MODELS.forEach((m, i) => {
       const mine = m.id === v.mine
-      const n = top > 0 ? Math.max(1, Math.round((costOf(m, mode, v.tokens) / top) * k.rows)) : 1
+      const n = top > 0 ? Math.max(1, Math.round((costOf(m, mode, v.tokens, v.ttlMin * 60000) / top) * k.rows)) : 1
       const bx = x + i * colW
       for (let c = 0; c < BARS_PER_MODEL; c++) {
         g += `<g class="${intro ? `k-in k-b${i * BARS_PER_MODEL + c}` : 'k-bar'}">`
@@ -128,7 +128,7 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
         g += '</g>'
       }
       if (mine) g += chipShapes(bx + 30, y + k.chip, t('card.you'), mode, 10, 0.8).svg
-      g += txt(bx + 30, y + k.price, usd(costOf(m, mode, v.tokens)), { size: 17, w: mine ? 700 : 500, fill: mine ? TEXT : MUTED })
+      g += txt(bx + 30, y + k.price, usd(costOf(m, mode, v.tokens, v.ttlMin * 60000)), { size: 17, w: mine ? 700 : 500, fill: mine ? TEXT : MUTED })
       g += txt(bx + 30, y + k.name, m.NAME, { size: 11, w: 700, fill: mine ? HUEM : MUTED, ls: 0.8 })
     })
     return g
@@ -202,6 +202,6 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
     `<rect class="k-scan" width="${W}" height="${SCAN_H}" fill="${TEXT}"/>`
   const alt = cold
     ? t('card.altCold', { idle: v.idle, tokens: tok(v.tokens) })
-    : t('card.altWarm', { minutes: Math.max(0, TTL_MIN - v.idleMin), tokens: tok(v.tokens) })
+    : t('card.altWarm', { minutes: Math.max(0, v.ttlMin - v.idleMin), tokens: tok(v.tokens) })
   return { source: svgDoc(W, h, body, true, mascotCss(CARD_MASCOT_SIZE) + cardCss(h)), w: W, h, alt: `${alt} ${t('card.altKeepwarm', { state: kw.state })}` }
 }

@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import type { CacheFacts, Fold } from '../../types'
+import type { CacheFacts, Fold, Ttl } from '../../types'
 import { fmtMinutes } from '../i18n'
 import type { Mode } from '../ui/theme'
 
@@ -11,9 +11,16 @@ const fold = atom({ plugin: 'glitchband', key: 'fold' } as const, null as Fold |
 /** The prompt cache lives an hour after the last request that read or wrote it. */
 export const TTL_MIN = 60
 export const TTL_MS = TTL_MIN * 60 * 1000
+const TTL_5M_MS = 5 * 60 * 1000
 
-// $ per million tokens: input, and the cache read. The 1-hour cache write is 2 times
-// input. Haiku 5.5 is $0.10 up to 100K tokens and $0.50 above; long sessions use the
+/** The cache's lifetime in milliseconds; 1 hour until the transcript says otherwise. */
+export const ttlMsOf = (ttl: Ttl | null | undefined): number => (ttl === '5m' ? TTL_5M_MS : TTL_MS)
+
+/** What a cache write costs as a multiple of input: 2 for the 1-hour cache, 1.25 for the 5-minute one. */
+export const writeMultiple = (ttlMs: number): number => (ttlMs < TTL_MS ? 1.25 : 2)
+
+// $ per million tokens: input, and the cache read. The cache write is 2 times input
+// for 1 hour and 1.25 times for 5 minutes. Haiku 5.5 is $0.10 up to 100K tokens and $0.50 above; long sessions use the
 // higher rate.
 export type Model = { id: string; NAME: string; input: number; read: number }
 export const MODELS: Model[] = [
@@ -29,9 +36,9 @@ export const familyOf = (model: string | null | undefined): string | null => {
   return MODELS.find(x => m.includes(x.id))?.id ?? null
 }
 
-export const coldCost = (m: Model, tokens: number): number => (tokens / 1e6) * m.input * 2
+export const coldCost = (m: Model, tokens: number, ttlMs = TTL_MS): number => (tokens / 1e6) * m.input * writeMultiple(ttlMs)
 export const warmCost = (m: Model, tokens: number): number => (tokens / 1e6) * m.read
-export const costOf = (m: Model, mode: Mode, tokens: number): number => (mode === 'cold' ? coldCost(m, tokens) : warmCost(m, tokens))
+export const costOf = (m: Model, mode: Mode, tokens: number, ttlMs = TTL_MS): number => (mode === 'cold' ? coldCost(m, tokens, ttlMs) : warmCost(m, tokens))
 export const usd = (n: number): string => '$' + n.toFixed(2)
 export const tok = (n: number): string => (n >= 1e6 ? `${Number((n / 1e6).toFixed(1))}M` : `${Math.round(n / 1000)}k`)
 
@@ -45,6 +52,8 @@ export type CacheView = {
   idle: string
   /** The same in whole minutes, for the warm countdown. */
   idleMin: number
+  /** How long the cache lives, in minutes: 60 or 5. */
+  ttlMin: number
   /** Context the next request re-sends. */
   tokens: number
   /** The model's context window. */
@@ -59,10 +68,12 @@ export const mineModel = (v: CacheView): Model | undefined => MODELS.find(m => m
 export const viewOf = (c: CacheFacts | null, now: number): CacheView | null => {
   if (!c || c.lastAt <= 0 || c.tokens <= 0) return null
   const idleMs = Math.max(0, now - c.lastAt)
+  const ttlMs = ttlMsOf(c.ttl)
   return {
-    mode: idleMs >= TTL_MS ? 'cold' : 'warm',
+    mode: idleMs >= ttlMs ? 'cold' : 'warm',
     idle: fmtIdle(idleMs),
     idleMin: Math.floor(idleMs / 60000),
+    ttlMin: ttlMs / 60000,
     tokens: c.tokens,
     window: c.window,
     mine: familyOf(c.model),
@@ -74,6 +85,7 @@ export async function measure($: EngineInterface, lastAt: number | null, model: 
   const u = await $.session.usage()
   const m = model ?? (await $.session.model())
   await update($, cache, c => ({
+    ...c,
     lastAt: lastAt ?? c?.lastAt ?? 0,
     tokens: u.context.tokens && u.context.tokens > 0 ? u.context.tokens : (c?.tokens ?? 0),
     window: u.context.window || c?.window || 0,
@@ -96,7 +108,12 @@ export async function toggleFold($: EngineInterface, mode: Mode): Promise<void> 
 
 /** A resumed or forked session knows how long it was away and how big it is. */
 export async function seedCache($: EngineInterface, lastAt: number, tokens: number, window: number, model: string | null): Promise<void> {
-  await update($, cache, () => ({ lastAt, tokens, window, model }))
+  await update($, cache, c => ({ ...c, lastAt, tokens, window, model }))
+}
+
+/** The lifetime the transcript showed. With no request yet, lastAt 0 keeps the band empty. */
+export async function setTtl($: EngineInterface, ttl: Ttl): Promise<void> {
+  await update($, cache, c => ({ lastAt: 0, tokens: 0, window: 0, model: null, ...c, ttl }))
 }
 
 /** A cleared or compacted conversation has no cache to show until its next reply. */
@@ -112,7 +129,7 @@ export async function setContext($: EngineInterface, tokens: number, window: num
 
 /** Each main-thread request reads or writes the cache, so its start resets the hour. */
 export async function stampRequest($: EngineInterface, now: number): Promise<void> {
-  await update($, cache, c => ({ lastAt: now, tokens: c?.tokens ?? 0, window: c?.window ?? 0, model: c?.model ?? null }))
+  await update($, cache, c => ({ ...c, lastAt: now, tokens: c?.tokens ?? 0, window: c?.window ?? 0, model: c?.model ?? null }))
 }
 
 /** A main-thread turn ended: take the engine's context figures. */

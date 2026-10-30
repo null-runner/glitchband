@@ -1,6 +1,6 @@
 {
   "name": "glitchband",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A band above the prompt: 7-day and 5-hour usage, prompt cache WARM or COLD with the price of the next message, and keepwarm to hold the cache.",
   "author": {
     "name": "null-runner",
