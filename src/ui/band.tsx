@@ -1,6 +1,7 @@
 import type { EngineInterface, MatchedHook } from 'claude-code'
 
-import { costOf, mineModel, readCache, readFold, toggleFold, usd, viewOf } from '../cache/cache'
+import { costOf, mineModel, readCache, readFold, toggleFold, tok, usd, viewOf } from '../cache/cache'
+import { readHandoff, runHandoff } from '../handoff'
 import { keepwarmCommand } from '../keepwarm/commands'
 import { parseDuration, readKeepwarm } from '../keepwarm/engine'
 import type { State } from '../keepwarm/engine'
@@ -50,6 +51,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   const now = await $.clock.now()
   const view = viewOf(await readCache($), now)
   const facts = await readKeepwarm($)
+  const handoffPhase = await readHandoff($)
 
   if (list.length === 0 && !view) {
     return (
@@ -78,7 +80,10 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
 
   // Wide: every window on one row. Narrow: each window is a block of three
   // lines (name and dots, percent left, reset time) so nothing wraps or clips.
-  // `lvl` is how crowded the row is: 0 as drawn, 1 without the reset times, 2 also without the USAGE word, 3 also with shorter bars.
+  // `lvl` is how crowded the row is, each step shedding one more thing: 0 as drawn, 1 the handoff button without its count,
+  // 2 also without the USAGE word, 3 also with shorter bars, 4 also with keepwarm in its short form, 5 also without the
+  // handoff button, 6 also with the reset times cut to their first unit. The reset times themselves are never dropped.
+  const shortReset = (reset: string): string => reset.split(' ')[0] ?? reset
   const wide = (w: Window, i: number, lvl = 0) => {
     const p = parts(w)
     return (
@@ -87,7 +92,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
         {meter(p, lvl > 2 ? BAR_W_SHORT : BAR_W)}
         <Text color={p.col} bold> {p.left}%{compact ? '' : ` ${t('band.left')}`}</Text>
         {p.left < LOW_AT ? <Text color={LOW_COLOR} bold>{` ${t('band.low')}`}</Text> : null}
-        {p.reset && lvl === 0 ? <Text color={MUTED}> · {p.reset}</Text> : null}
+        {p.reset ? <Text color={MUTED}>{` · ${lvl >= 6 ? shortReset(p.reset) : p.reset}`}</Text> : null}
       </Box>
     )
   }
@@ -121,18 +126,19 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   const usage = usageAt(0)
   const grow = <Box key="grow" flexGrow={1} />
   const value = kwValue(facts, now)
-  const kwIndicator = (
+  const kwIndicatorOf = (short: boolean) => (
     <Box key="kw" flexDirection="row" flexShrink={0} marginRight={2}>
       {value.tone === 'off' ? (
-        <Text color={MUTED}>{isShort ? t('kw.offShort') : t('kw.off')}</Text>
+        <Text color={MUTED}>{short ? t('kw.offShort') : t('kw.off')}</Text>
       ) : (
         [
-          <Text key="name" color={MUTED} bold>{`${isShort ? t('kw.nameShort') : t('kw.name')} `}</Text>,
-          <Text key="value" color={KW_COLORS[value.tone]} bold>{isShort ? value.short : value.text}</Text>,
+          <Text key="name" color={MUTED} bold>{`${short ? t('kw.nameShort') : t('kw.name')} `}</Text>,
+          <Text key="value" color={KW_COLORS[value.tone]} bold>{short ? value.short : value.text}</Text>,
         ]
       )}
     </Box>
   )
+  const kwIndicator = kwIndicatorOf(isShort)
   // The keepwarm control: a Select of the same choices as /keepwarm, short and of fixed width ("KW 6h"), so a label can never
   // outgrow the row. A pick runs the command itself. `value` follows the state, whoever changed it.
   const windows = [...new Set(['90m', options.keepwarmWindow.text, '12h'])]
@@ -229,15 +235,35 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   ) : null
   const isInline = kind === 'wide'
 
+  // Refresh: the context has grown to the handoffAt threshold. Wide on the desktop it carries the token count (until the row
+  // is short of room); everywhere else it is the short word.
+  const wantHandoff = options.handoffAt > 0 && view.tokens >= options.handoffAt
+  const writing = handoffPhase === 'writing'
+  const handoffLabelAt = (lvl: number): string =>
+    writing ? t('handoff.writing') : Svg && isWide && lvl < 1 ? t('handoff.buttonTokens', { tokens: tok(view.tokens) }) : t('handoff.button')
+  const handoffButton = (lvl: number) => (
+    <Box key="handoff-box" flexShrink={0} alignItems="center" marginRight={1}>
+      <Button key="handoff" label={handoffLabelAt(lvl)} variant="secondary" hover={{ color: CHIP_EDGE[mode] }} onPress={() => runHandoff($)}>
+        <Text color={writing ? MUTED : hue} bold={!writing} dimColor={writing}>{handoffLabelAt(lvl)}</Text>
+      </Button>
+    </Box>
+  )
+
   // The wide row's room, estimated in pixels from its characters: the keepwarm button is sized for its
-  // longest label, and what gives way first is the reset times, then the bar length, never a button.
+  // longest label. What gives way, in order: the handoff count, the USAGE word, the bar length, keepwarm's text to its short form, the handoff
+  // button, then the reset times shrink to their first unit; Show, the select and the reset times stay.
+  // The levels in the order they are tried. With a handoff button, step 5 drops it and the reset times keep their full form; without one
+  // there is nothing to drop and the last step shortens the reset times. The estimate runs generous and a wide row has always overshot
+  // it, so when no step fits the row stays at step 3: nothing more is shed that would not make it fit, and the reset times stay whole.
+  const order = wantHandoff ? [0, 1, 2, 3, 4, 5] : [0, 1, 2, 3, 4, 6]
   const textPx = (str: string) => str.length * CHAR_PX
   const rowPx = (lvl: number): number => {
     const clock = '00/00 00:00'
     let px = lvl < 2 ? textPx(t('band.usage')) + (isWide ? 2 : 3) * CELL_PX : 0
+    if (wantHandoff && lvl < 5) px += Math.max(...[handoffLabelAt(lvl), t('handoff.writing')].map(textPx)) + BTN_CHROME + CELL_PX
     for (const w of list) {
       const p = parts(w)
-      const text = `${p.name}  ${p.left}%${compact ? '' : ` ${t('band.left')}`}${p.left < LOW_AT ? ` ${t('band.low')}` : ''}${p.reset && lvl === 0 ? ` · ${p.reset}` : ''}`
+      const text = `${p.name}  ${p.left}%${compact ? '' : ` ${t('band.left')}`}${p.left < LOW_AT ? ` ${t('band.low')}` : ''}${p.reset ? ` · ${lvl >= 6 ? shortReset(p.reset) : p.reset}` : ''}`
       px += textPx(text) + (Svg ? (lvl > 2 ? BAR_W_SHORT : BAR_W) : 0) + (compact ? 2 : 3) * CELL_PX
     }
     if (!open) {
@@ -245,13 +271,13 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
       const tail = cold ? ` ${view.idle}${mine ? ' · $00.00' : ''}` : ` 00${t('unit.m')}${compact ? '' : ` ${t('band.left')}`}`
       px += (Svg ? MASCOT_SIZE + CHAR_PX + word : 0) + textPx(tail) + (compact ? 1 : 2) * CELL_PX
     }
-    if (!compact) px += textPx(`${isShort ? t('kw.nameShort') : t('kw.name')} ${isShort ? clock : t('kw.until', { time: clock })}`) + 2 * CELL_PX
+    if (!compact) px += textPx(`${isShort || lvl >= 4 ? t('kw.nameShort') : t('kw.name')} ${isShort || lvl >= 4 ? clock : t('kw.until', { time: clock })}`) + 2 * CELL_PX
     px += Math.max(...[t('band.show'), t('band.hide')].map(textPx)) + BTN_CHROME + 2 * CELL_PX
     return px + textPx(`${t('kw.nameShort')} ${t('kw.select.always')}`) + SELECT_CHROME + CELL_PX + SAFETY_PX
   }
   // The column count overstates the desktop slot; the dark panel measured ~950 px, so the row budgets from the same cap as the card.
   const room = Math.min(columns * CELL_PX, CARD_MAX_PX) - 2 * PAD_PX
-  const level = !Svg || !isWide ? 0 : [0, 1, 2].find(l => rowPx(l) <= room) ?? 3
+  const level = !Svg || !isWide ? 0 : order.find(l => rowPx(l) <= room) ?? 3
 
   let rows
   if (kind === 'wide') {
@@ -265,8 +291,9 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
             {summary}
           </Box>
         )}
-        {isInline && !compact ? kwIndicator : null}
+        {isInline && !compact ? kwIndicatorOf(isShort || level >= 4) : null}
         {grow}
+        {wantHandoff && level < 5 ? handoffButton(level) : null}
         {button}
         {isInline ? kwSelect : null}
       </Box>
@@ -290,6 +317,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
           </Box>
         )}
         {grow}
+        {wantHandoff ? handoffButton(0) : null}
         {button}
       </Box>
     )
@@ -304,6 +332,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
         {badge}
         {summary}
         {grow}
+        {wantHandoff ? handoffButton(0) : null}
         {button}
       </Box>,
     ]

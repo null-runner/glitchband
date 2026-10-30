@@ -10,10 +10,14 @@ export type Options = {
   /** The window the button and a bare /keepwarm arm, as written ("6h") and in milliseconds. */
   keepwarmWindow: { text: string; ms: number }
   coldGuard: boolean
+  /** Context tokens from which the band offers a handoff to a fresh chat; 0 is off. */
+  handoffAt: number
 }
 
 const COMPACT_RANGE = [40, 400] as const
 const SCALE_RANGE = [0.5, 3] as const
+const HANDOFF_RANGE = [0, 2_000_000] as const
+const DEFAULT_HANDOFF_AT = 600_000
 const WINDOW_RANGE_MS = [60_000, 48 * 60 * 60_000] as const
 const DEFAULT_WINDOW = '6h'
 
@@ -33,4 +37,5 @@ export const readOptions = (raw: PluginOptions): Options => ({
   cardScale: inRange(raw.cardScale, SCALE_RANGE) ? raw.cardScale : DEFAULT_CARD_SCALE,
   keepwarmWindow: windowOf(raw.keepwarmWindow),
   coldGuard: raw.coldGuard !== false,
+  handoffAt: inRange(raw.handoffAt, HANDOFF_RANGE) ? raw.handoffAt : DEFAULT_HANDOFF_AT,
 })

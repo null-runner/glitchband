@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.0
+
+- Handoff: from `handoffAt` tokens of context (default 600000, 0 is off) the band shows a Refresh button before Show. It has the model write a handoff over the chat's own transcript, saves it to `~/.claude/handoffs/`, clears the chat and sends it as the first message of the new one (or fills the prompt when the chat cannot be cleared). `/glitchband` prints the threshold.
+- The usage reset times are never dropped from the row. A crowded wide row now sheds, in order: the handoff count, the USAGE word, bar length, keepwarm's text, the handoff button; with nothing to drop, the reset times shorten to their first unit.
+
 ## 0.1.6
 
 - The wide cache card fits 7 rows instead of 8 (tighter top, bottom and keepwarm strip), and a small gap separates the panel from a band stacked under it.

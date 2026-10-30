@@ -73,7 +73,7 @@ export async function keepwarmCommand(s: State, $: EngineInterface, e: RunEvent)
 }
 
 /** The cache estimate, the keepwarm window and this session's cold writes, one line each. */
-function card(s: State, now: number): string {
+function card(s: State, now: number, handoffAt: number): string {
   const lines: string[] = []
   lines.push(s.lastModel ?? t('cmd.noModel'))
   if (s.compacted) lines.push(t('cmd.state.compacted'))
@@ -83,6 +83,7 @@ function card(s: State, now: number): string {
   else lines.push(t('cmd.state.warm', { time: fmtDuration(s.lastRequestAt + s.ttlMs - now) }))
   lines.push(t(s.ttlSeen ? 'cmd.ttl.seen' : 'cmd.ttl.assumed', { ttl: s.ttlMs >= TTL_MS ? `${s.ttlMs / TTL_MS}${t('unit.h')}` : `${s.ttlMs / 60000}${t('unit.m')}` }))
   lines.push(t('cmd.context', { tokens: fmtInt(s.ctx) }))
+  lines.push(handoffAt > 0 ? t('cmd.handoffLine', { tokens: fmtInt(handoffAt) }) : t('cmd.handoffOff'))
   lines.push(t('cmd.coldCost', { cold: fmtUsd(coldUsd(s)), warm: fmtUsd(warmUsd(s)) }))
   const always = s.always ? t('cmd.always') : ''
   lines.push(
@@ -99,7 +100,7 @@ function card(s: State, now: number): string {
   return lines.join('\n')
 }
 
-export async function glitchbandCommand(s: State, $: EngineInterface, e: RunEvent) {
+export async function glitchbandCommand(s: State, $: EngineInterface, e: RunEvent, handoffAt: number) {
   await reseat($, s)
   const words = wordsOf(e)
   const now = await $.clock.now()
@@ -109,5 +110,5 @@ export async function glitchbandCommand(s: State, $: EngineInterface, e: RunEven
     await $.store.set(KEY_GUARD, s.guard)
     return { text: t(!s.guardOn ? 'cmd.guard.disabled' : s.guard === 'refuse' ? 'cmd.guard.refuse' : 'cmd.guard.warn') }
   }
-  return { text: card(s, now) }
+  return { text: card(s, now, handoffAt) }
 }

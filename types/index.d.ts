@@ -47,8 +47,11 @@ export type KeepwarmFacts = {
   coldUsd: number
 }
 
+/** Where a handoff stands: idle until pressed, writing while it runs, then how it ended. */
+export type HandoffPhase = 'idle' | 'writing' | 'done' | 'failed'
+
 declare module 'claude-code' {
   interface PluginState {
-    glitchband: { windows: Window[]; cache: CacheFacts | null; fold: Fold | null; keepwarm: KeepwarmFacts | null }
+    glitchband: { windows: Window[]; cache: CacheFacts | null; fold: Fold | null; keepwarm: KeepwarmFacts | null; handoff: HandoffPhase }
   }
 }

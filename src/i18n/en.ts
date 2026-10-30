@@ -135,6 +135,19 @@ export const en = {
   'cmd.guard.offLine': 'guard       off (coldGuard option)',
   'cmd.session.one': 'session     {n} cold write paid, {usd}',
   'cmd.session.many': 'session     {n} cold writes paid, {usd}',
+
+  'handoff.button': 'Refresh',
+  'handoff.buttonTokens': 'Refresh {tokens}',
+  'handoff.writing': 'Writing handoff…',
+  'handoff.intro': 'Continue from this handoff (saved at {path}):',
+  'handoff.done': 'Handoff saved at {path}. The new chat starts from it.',
+  'handoff.filled': 'Handoff saved at {path} and put in the prompt: send it after /clear.',
+  'handoff.failed': 'Handoff failed: {why}.',
+  'handoff.failedSaved': 'Handoff failed: {why}. The file is at {path}.',
+  'handoff.nothing': 'there is nothing to hand off yet',
+  'handoff.noHome': 'no home folder to save in',
+  'cmd.handoffLine': 'handoff     at {tokens} tokens (Refresh in the band)',
+  'cmd.handoffOff': 'handoff     off (handoffAt option)',
 } as const
 
 export type Key = keyof typeof en

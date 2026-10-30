@@ -224,10 +224,8 @@ test('at 82 and 100 columns with keepwarm armed, the wide row fits its width and
     expect(select?.props.label).toBe('KW')
     expect(await kwValueOf(band)).toBe('6h')
     expect(await band.find({ key: 'cache-fold' })).toBeDefined()
-    // What gives way goes in order: the reset times, then the USAGE word, then the bar length; never Show or the select.
-    const text = JSON.stringify(row)
-    const [hasReset, hasWord] = [text.includes(' · '), text.includes('USO') || text.includes('USAGE')]
-    expect(!hasWord ? !hasReset : true, `${columns} columns: the word went before the reset times`).toBe(true)
+    // The reset times never go: they are on the row at every width.
+    expect(JSON.stringify(row).includes(' · '), `${columns} columns: the reset times stayed`).toBe(true)
     await band.unmount()
   }
 })

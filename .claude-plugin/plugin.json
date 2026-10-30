@@ -1,6 +1,6 @@
 {
   "name": "glitchband",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "description": "A band above the prompt: 7-day and 5-hour usage, prompt cache WARM or COLD with the price of the next message, and keepwarm to hold the cache.",
   "author": {
     "name": "null-runner",
@@ -58,6 +58,14 @@
       "title": "Cold-send guard",
       "description": "Hold back a message sent on a cold cache once, with its price; off lets it through untouched",
       "default": true
+    },
+    "handoffAt": {
+      "type": "number",
+      "title": "Handoff at (tokens)",
+      "description": "From this much context the band offers Refresh: write a handoff and continue in a fresh chat; 0 turns it off",
+      "default": 600000,
+      "min": 0,
+      "max": 2000000
     }
   }
 }

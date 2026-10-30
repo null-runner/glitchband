@@ -29,7 +29,7 @@ export const register: Register = (on, raw) => {
 
   on('session.end', ($, e, next) => sessionEnd(kwState, $, e, next))
   on('command.run', { command: 'keepwarm' }, ($, e) => keepwarmCommand(kwState, $, e))
-  on('command.run', { command: 'glitchband' }, ($, e) => glitchbandCommand(kwState, $, e))
+  on('command.run', { command: 'glitchband' }, ($, e) => glitchbandCommand(kwState, $, e, options.handoffAt))
   on('prompt.submit', ($, e, next) => promptSubmit(kwState, $, e, next))
   on('session.compact', ($, e, next) => sessionCompact(kwState, $, e, next))
 

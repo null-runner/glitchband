@@ -46,6 +46,7 @@ test('the defaults keep the behaviour the band has always had', () => {
     cardScale: 1,
     keepwarmWindow: { text: '6h', ms: 6 * HOUR },
     coldGuard: true,
+    handoffAt: 600000,
   })
 })
 
@@ -56,6 +57,7 @@ test('valid values are taken, a duration is normalised', () => {
     cardScale: 2,
     keepwarmWindow: { text: '2h30m', ms: 150 * 60 * 1000 },
     coldGuard: false,
+    handoffAt: 600000,
   })
 })
 
