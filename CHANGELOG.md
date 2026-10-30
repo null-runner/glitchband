@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- With another mod's band stacked beneath, the cache card keeps two rows free for it and folds when it can't, so the band no longer scrolls.
+
 ## 0.1.3
 
 - Next message costs no longer run into each other: the four model columns share the width, each with two dot columns, and a price of $10 or more drops its cents.

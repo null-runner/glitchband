@@ -174,3 +174,23 @@ test('an open card stays inside maxRows with the one-line strip, else no card an
   expect(await none.find({ key: 'card' })).toBeUndefined()
   await none.unmount()
 })
+
+test("with another mod's band beneath, the card leaves it room instead of making the band scroll", async ($, on) => {
+  mock.store(on)
+  answerSession(on)
+  mock.clock(on, { now: NOW })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 1000000 }, rateLimits: WINDOWS } }))
+  on('classic.SessionStart', () => ({}))
+  on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return <Text>other band</Text>
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await $.classic.SessionStart({ source: 'resume', seconds_since_last_response: COLD_IDLE, context_tokens: 770000, model: 'claude-opus-5-5' })
+
+  const band = await $.ui.mount({ plugin: 'glitchband', surface: 'desktop', component: 'AbovePrompt', props: { ...PROPS, bodyColumns: 140, maxRows: 10, scroll: { offset: 0, bodyRows: 10 } } })
+  expect(await band.find({ text: 'other band' })).toBeDefined()
+  expect((await rowsOf(band)).card).toBeUndefined()
+  await band.unmount()
+})

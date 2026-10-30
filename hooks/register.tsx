@@ -9,7 +9,7 @@ import {
 } from '../src/keepwarm/engine'
 import { readOptions } from '../src/options'
 import { renderBand } from '../src/ui/band'
-import { TICK_MS } from '../src/ui/theme'
+import { BELOW_ROWS, TICK_MS } from '../src/ui/theme'
 import { pull, setWindows } from '../src/usage/usage'
 
 export const register: Register = (on, raw) => {
@@ -73,7 +73,7 @@ export const register: Register = (on, raw) => {
     // nested: the desktop drops a band that nests it.
     const drawn = await Promise.resolve(next(e)).catch(() => null)
     const below = drawn && typeof drawn === 'object' && (drawn as { type?: string }).type !== 'engine' ? drawn : null
-    const band = await renderBand($, e, next, kwState, options)
+    const band = await renderBand($, e, next, kwState, options, below ? BELOW_ROWS : 0)
     if (!below) return band
     const { Box } = $.ui.resolve(e)
     return (

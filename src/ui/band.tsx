@@ -36,7 +36,7 @@ let cardWasOpen = false
 type RenderHook = MatchedHook<'ui.render', { readonly component: 'AbovePrompt' }>
 type RenderArgs = Parameters<RenderHook>
 
-export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: RenderArgs[2], kwState: State, options: Options): Promise<Awaited<ReturnType<RenderHook>>> {
+export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: RenderArgs[2], kwState: State, options: Options, belowRows = 0): Promise<Awaited<ReturnType<RenderHook>>> {
   if (e.props.hasSurvey) return next(e)
 
   const ui = $.ui.resolve(e)
@@ -188,7 +188,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   // The card must fit the rows the band may take, or the engine scrolls it: the desktop measured a hair over its
   // window with the full strip, so the card always takes the one-line strip; no fit, no card (and no Show button).
   const px = Math.min(bandPx(columns), CARD_MAX_PX)
-  const budget = (e.props.maxRows - HEAD_ROWS[kind]) * ROW_PX
+  const budget = (e.props.maxRows - HEAD_ROWS[kind] - belowRows) * ROW_PX
   const kwText = kwCard(facts, now)
   const drawCard = (intro: boolean) => {
     const c = cardSvg(view, kind, Math.floor(px / options.cardScale), kwText, intro, true)
