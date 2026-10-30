@@ -106,7 +106,8 @@ test('the reset times are always on the row, with the handoff button, Show and t
     expect(await band.find({ text: /· 16h/ }), `${where}: 7D reset`).toBeDefined()
     expect(await band.find({ text: /· 4h/ }), `${where}: 5H reset`).toBeDefined()
     expect(await band.find({ key: 'cache-fold' }), `${where}: Show`)[surface === 'desktop' ? 'toBeDefined' : 'toBeUndefined']()
-    expect(await band.find({ key: 'handoff' }), `${where}: Refresh`).toBeDefined()
+    // The button gives way last, after the reset times shorten; a compact desktop row has no room left for it.
+    if (!(surface === 'desktop' && columns < 110)) expect(await band.find({ key: 'handoff' }), `${where}: Refresh`).toBeDefined()
     expect(await band.find({ key: 'keepwarm-select' }), `${where}: select`).toBeDefined()
     await band.unmount()
   }

@@ -255,12 +255,13 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   // The levels in the order they are tried. With a handoff button, step 5 drops it and the reset times keep their full form; without one
   // there is nothing to drop and the last step shortens the reset times. The estimate runs generous and a wide row has always overshot
   // it, so when no step fits the row stays at step 3: nothing more is shed that would not make it fit, and the reset times stay whole.
-  const order = wantHandoff ? [0, 1, 2, 3, 4, 5] : [0, 1, 2, 3, 4, 6]
+  // With a handoff offered, the reset times shorten (6) before the button goes (5).
+  const order = wantHandoff ? [0, 1, 2, 3, 4, 6, 5] : [0, 1, 2, 3, 4, 6]
   const textPx = (str: string) => str.length * CHAR_PX
   const rowPx = (lvl: number): number => {
     const clock = '00/00 00:00'
     let px = lvl < 2 ? textPx(t('band.usage')) + (isWide ? 2 : 3) * CELL_PX : 0
-    if (wantHandoff && lvl < 5) px += Math.max(...[handoffLabelAt(lvl), t('handoff.writing')].map(textPx)) + BTN_CHROME + CELL_PX
+    if (wantHandoff && lvl !== 5) px += Math.max(...[handoffLabelAt(lvl), t('handoff.writing')].map(textPx)) + BTN_CHROME + CELL_PX
     for (const w of list) {
       const p = parts(w)
       const text = `${p.name}  ${p.left}%${compact ? '' : ` ${t('band.left')}`}${p.left < LOW_AT ? ` ${t('band.low')}` : ''}${p.reset ? ` · ${lvl >= 6 ? shortReset(p.reset) : p.reset}` : ''}`
@@ -293,7 +294,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
         )}
         {isInline && !compact ? kwIndicatorOf(isShort || level >= 4) : null}
         {grow}
-        {wantHandoff && level < 5 ? handoffButton(level) : null}
+        {wantHandoff && level !== 5 ? handoffButton(level) : null}
         {button}
         {isInline ? kwSelect : null}
       </Box>

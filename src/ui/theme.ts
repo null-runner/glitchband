@@ -113,10 +113,10 @@ export const KW_H_SLIM = 26
 /** A character of the desktop's text in the band (a real screenshot measured about 8.4 px; 11 dropped USAGE from a row with room to spare), and the cell the engine counts (12 px, the code font's advance). */
 export const CHAR_PX = 9
 export const CELL_PX = 12
-/** What a native button adds around its label, and the band's side padding (the 'md' step, a guess); both erred on the generous side after a real screenshot cut the select off. */
-export const BTN_CHROME = 64
-/** A select: its label, value and arrow. */
-export const SELECT_CHROME = 70
+/** What a native button adds around its label: a desktop screenshot (30/10) measured Hide at ~60 px for a ~34 px label; kept a little over. */
+export const BTN_CHROME = 40
+/** A select around its value: the same screenshot measured "KW 6h" with its arrow at ~100 px; sized here on the longest value plus this. */
+export const SELECT_CHROME = 50
 /** Kept free at the end of a wide row on top of the estimate. */
 export const SAFETY_PX = 24
 export const PAD_PX = 12

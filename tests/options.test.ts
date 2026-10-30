@@ -82,7 +82,8 @@ test('keepwarmWindow is the configured entry of the select, once, and a pick arm
   await band.select({ key: 'keepwarm-select', value: '90m' })
   const until = new Date(NOW + 1.5 * HOUR)
   const hm = `${String(until.getHours()).padStart(2, '0')}:${String(until.getMinutes()).padStart(2, '0')}`
-  expect(await band.find({ text: `until ${hm}` })).toBeDefined()
+  // The long form or the short one, whichever the row has room for.
+  expect((await band.find({ text: `until ${hm}` })) ?? (await band.find({ text: new RegExp(`${hm}`) }))).toBeDefined()
   await band.unmount()
 })
 
