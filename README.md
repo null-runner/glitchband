@@ -66,7 +66,7 @@ Each ping is one request to the model on the session transcript, sent after 50 m
 
 ## Credits
 
-The band and the cache card come from ribbon by Jay E (RoboNuggets), MIT. Keepwarm, the cold-send guard and the cache estimate command come from cache-tax by Karan Bansal, MIT. Their copyright notices are in `LICENSE`.
+The band and the cache card come from ribbon by Jay E (RoboNuggets), MIT. Keepwarm, the cold-send guard and the cache estimate command come from cache-tax by Karan Bansal, MIT. Their copyright notices are in `LICENSE`. The embedded font is [Outfit](https://github.com/Outfitio/Outfit-Fonts), under the SIL Open Font License 1.1 (`OFL.txt`).
 
 ## Italiano
 
