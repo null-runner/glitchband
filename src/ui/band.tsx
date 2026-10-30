@@ -323,7 +323,8 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   }
 
   return (
-    <Box flexDirection="column" width="100%" backgroundColor={BG}>
+    // marginBottom: a gap before another mod's band stacked under the panel.
+    <Box flexDirection="column" width="100%" backgroundColor={BG} marginBottom="sm">
       {rows}
       {isInline ? null : kwRowOf(padB)}
       {card}

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6
+
+- The wide cache card fits 7 rows instead of 8 (tighter top, bottom and keepwarm strip), and a small gap separates the panel from a band stacked under it.
+- A /reload-plugins no longer shows the "resumed ... the cache may be cold" notice: the last request's time is taken back from the session's cache facts.
+
 ## 0.1.5
 
 - The cache card always keeps two rows free: a mod loaded before glitchband can stack its row under the card where glitchband can't see it, and the band scrolled.

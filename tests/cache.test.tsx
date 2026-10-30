@@ -159,14 +159,14 @@ test('an open card stays inside maxRows with the one-line strip, else no card an
   expect(c12).toBeDefined()
   expect(r12).toBeLessThanOrEqual(12)
   // Always the one-line strip: the full one ran a hair past the desktop's window and scrolled.
-  expect(Number(c12?.props.height)).toBe(200)
-  expect(String(c12?.props.source)).toContain('width="950" height="200"')
+  expect(Number(c12?.props.height)).toBe(175)
+  expect(String(c12?.props.source)).toContain('width="950" height="175"')
   await full.unmount()
 
   const ten = await draw(12)
   const { card: c10, rows: r10 } = await rowsOf(ten)
   expect(r10).toBeLessThanOrEqual(10)
-  expect(Number(c10?.props.height)).toBe(200)
+  expect(Number(c10?.props.height)).toBe(175)
   await ten.unmount()
 
   // Alone too: a band stacked by a mod loaded earlier would not be seen.

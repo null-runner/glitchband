@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Events } from 'claude-code'
 
 import type { KeepwarmFacts, Ping } from '../../types'
-import { TTL_MS, writeMultiple } from '../cache/cache'
+import { TTL_MS, readCache, writeMultiple } from '../cache/cache'
 import { fmtInt, t } from '../i18n'
 
 // Ported from cache-tax 2.3.1 (Karan Bansal, MIT). The behaviour is the original's; what changed is where it
@@ -556,6 +556,13 @@ type Nx<N extends keyof Events> = Parameters<Events[N]>[2]
 export async function sessionStart(s: State, $: EngineInterface, e: Ev<'session.start'>, next: Nx<'session.start'>) {
   const r = await next(e)
   const now = await seat($, s)
+  // A /reload-plugins runs session.start again with this module's state started over; the session's cache facts
+  // survive it and keep the last request's time, so a reload is not taken for a resume without one.
+  const kept = (await readCache($))?.lastAt ?? 0
+  if (!s.lastRequestAt && kept > 0) {
+    s.lastRequestAt = kept
+    s.resumedAt = 0
+  }
   await prune($, s, now)
   const saved = await $.store.get(deadlineKey(s))
   const savedEvery = await $.store.get(everyKey(s))

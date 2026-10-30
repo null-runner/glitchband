@@ -98,16 +98,16 @@ export const CARD_SCAN_S = 8
 /** The cost bars fill one after the other when the card opens: the gap between bars and the time each takes. */
 export const CARD_BAR_STAGGER_MS = 80
 export const CARD_BAR_MS = 420
-/** The gap above the card's content, drawn inside the card. */
-export const CARD_TOP = 8
+/** The gap above the card's content, drawn inside the card. With CARD_BOTTOM and KW_H_SLIM it is sized so the wide card fills 7 whole rows (175 px), not 8. */
+export const CARD_TOP = 4
 /** The room under the card's content. */
-export const CARD_BOTTOM = 10
+export const CARD_BOTTOM = 4
 /** The keepwarm strip's height: one row of three columns, or three stacked rows (plus a line for a stop reason) when narrow. */
 export const KW_H = 62
 export const KW_H_ROWS = 78
 export const KW_NOTE_H = 16
 /** The strip as one line, when the room above the prompt is short. */
-export const KW_H_SLIM = 30
+export const KW_H_SLIM = 26
 
 // ---------- Width: what a wide row is estimated to take, in pixels ----------
 /** A character of the desktop's text in the band (a real screenshot measured about 8.4 px; 11 dropped USAGE from a row with room to spare), and the cell the engine counts (12 px, the code font's advance). */
