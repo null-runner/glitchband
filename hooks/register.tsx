@@ -63,5 +63,20 @@ export const register: Register = (on, raw) => {
     return r
   })
 
-  on('ui.render', { component: 'AbovePrompt' }, ($, e, next) => renderBand($, e, next, kwState, options))
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    if (e.props.hasSurvey) return next(e)
+    // Other mods' bands draw beneath this one. Claude Code's own placeholder ({ type: 'engine' }) is never
+    // nested: the desktop drops a band that nests it.
+    const drawn = await Promise.resolve(next(e)).catch(() => null)
+    const below = drawn && typeof drawn === 'object' && (drawn as { type?: string }).type !== 'engine' ? drawn : null
+    const band = await renderBand($, e, next, kwState, options)
+    if (!below) return band
+    const { Box } = $.ui.resolve(e)
+    return (
+      <Box flexDirection="column">
+        {band}
+        {below}
+      </Box>
+    )
+  })
 }

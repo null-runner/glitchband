@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.1.1
+
+- Other mods' bands above the prompt now draw beneath glitchband instead of being hidden by it.
+
+## 0.1.0
 
 - Restyle in step with Claude Desktop: a neutral warm-grey palette with one violet, Claude coral for WARM and ice blue for COLD. No magenta, pink or lilac.
 - Usage bars instead of dots on the desktop: a rounded bar of what is left with a faint shine and a one-time grow. The terminal keeps dots.
