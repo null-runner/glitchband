@@ -15,8 +15,13 @@ import type { Kind } from './theme'
 type TextOpts = { size?: number; w?: number; fill?: string; ls?: number; anchor?: string }
 
 const SCAN_H = 3
-/** The cost bars: three dot columns for each of the models. */
-const BARS_PER_MODEL = 3
+/** The cost bars: two dot columns for each of the models, leaving the price room in a 74 px column. */
+const BARS_PER_MODEL = 2
+const DOT_STEP = 8
+/** Where a model's price and name start, past its dots. */
+const PRICE_DX = 3 + (BARS_PER_MODEL - 1) * DOT_STEP + 9
+/** $10 and up drop the cents: a six-character price would run into the next model's dots. */
+const price = (n: number): string => (n >= 10 ? '$' + Math.round(n) : usd(n))
 
 /** The card's own animations: the scanline down the card, the glow on the "now" point, and, when the card has just opened, the bars filling in turn. */
 const cardCss = (h: number): string => {
@@ -124,12 +129,12 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
       const bx = x + i * colW
       for (let c = 0; c < BARS_PER_MODEL; c++) {
         g += `<g class="${intro ? `k-in k-b${i * BARS_PER_MODEL + c}` : 'k-bar'}">`
-        for (let r = 0; r < k.rows; r++) g += `<circle cx="${bx + 3 + c * 8}" cy="${y + k.base - r * k.step}" r="2.8" fill="${r < n ? (mine ? HUEM : MUTED) : EMPTY}"/>`
+        for (let r = 0; r < k.rows; r++) g += `<circle cx="${bx + 3 + c * DOT_STEP}" cy="${y + k.base - r * k.step}" r="2.8" fill="${r < n ? (mine ? HUEM : MUTED) : EMPTY}"/>`
         g += '</g>'
       }
-      if (mine) g += chipShapes(bx + 30, y + k.chip, t('card.you'), mode, 10, 0.8).svg
-      g += txt(bx + 30, y + k.price, usd(costOf(m, mode, v.tokens, v.ttlMin * 60000)), { size: 17, w: mine ? 700 : 500, fill: mine ? TEXT : MUTED })
-      g += txt(bx + 30, y + k.name, m.NAME, { size: 11, w: 700, fill: mine ? HUEM : MUTED, ls: 0.8 })
+      if (mine) g += chipShapes(bx + PRICE_DX, y + k.chip, t('card.you'), mode, 10, 0.8).svg
+      g += txt(bx + PRICE_DX, y + k.price, price(costOf(m, mode, v.tokens, v.ttlMin * 60000)), { size: 16, w: mine ? 700 : 500, fill: mine ? TEXT : MUTED })
+      g += txt(bx + PRICE_DX, y + k.name, m.NAME, { size: 11, w: 700, fill: mine ? HUEM : MUTED, ls: 0.8 })
     })
     return g
   }
@@ -161,9 +166,8 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
   let g: string
   if (kind === 'wide') {
     H = 140
-    // 92 px a model column on the page's full width; tighter near the switch point,
-    // where the last column still needs about 90 px for its price.
-    const colW = Math.min(92, Math.floor((W - 640 - 103) / 3))
+    // The four model columns share what is left of the width: 74 px on the desktop's 950.
+    const colW = Math.min(92, Math.floor((W - 640 - 13) / 4))
     g = zoneIdle(13, 0, 290, { header: true }) + vline(314, 18, H - 36) + zoneSize(340, 0, 260) + vline(614, 18, H - 36) + zoneCost(640, 0, colW)
     const xs = [13, 340, 640]
     g += hline(H) + (slim ? stripSlim(H, xs) : stripColumns(H, xs))

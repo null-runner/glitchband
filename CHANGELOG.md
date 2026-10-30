@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Next message costs no longer run into each other: the four model columns share the width, each with two dot columns, and a price of $10 or more drops its cents.
+
 ## 0.1.2
 
 - The cache's lifetime (1 hour or 5 minutes) is read from the chat's transcript, and the WARM/COLD countdown, the re-cache price (2x or 1.25x input) and the keepwarm ping timing follow it. When it can't be read, 1 hour is assumed, as before.

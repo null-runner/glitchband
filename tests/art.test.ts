@@ -129,7 +129,7 @@ test('the card has a faint scanline and fills its cost bars in turn only when it
   expect(CARD_SCAN_OPACITY).toBeLessThanOrEqual(0.06)
   expect(opened).toContain(`opacity:${CARD_SCAN_OPACITY}`)
   expect(opened).toContain('class="k-in k-b0"')
-  expect(opened).toContain(`class="k-in k-b${MODELS.length * 3 - 1}"`)
+  expect(opened).toContain(`class="k-in k-b${MODELS.length * 2 - 1}"`)
   expect(opened).toContain(`.k-b1{animation-delay:${CARD_BAR_STAGGER_MS}ms}`)
   expect(opened).toContain('both')
   expect(cardSvg(view('warm'), 'wide', 800, KW).source).not.toContain('class="k-in')
