@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- The 5-hour bar no longer vanishes after its reset: until the next reading it shows as a fresh window, 100% left.
+
 ## 0.2.0
 
 - Handoff: from `handoffAt` tokens of context (default 600000, 0 is off) the band shows a Refresh button before Show. It has the model write a handoff over the chat's own transcript, saves it to `~/.claude/handoffs/`, clears the chat and sends it as the first message of the new one (or fills the prompt when the chat cannot be cleared). `/glitchband` prints the threshold.
