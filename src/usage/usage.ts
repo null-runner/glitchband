@@ -10,13 +10,11 @@ const windows = atom({ plugin: 'glitchband', key: 'windows' } as const, [] as Wi
 const NAME_KEYS = { seven_day: 'window.sevenDay', five_hour: 'window.fiveHour', spend_limit: 'window.spend' } as const
 const ORDER: Record<string, number> = { seven_day: 0, five_hour: 1 }
 
-/** Windows in the order the band draws them: 7-day first, then 5-hour. A plan's 5-hour window goes unreported from its
- *  reset until the next reading opens a new one; it is drawn fresh then (0% used, no reset time) rather than vanishing. */
-export const clean = (list: readonly Window[]): Window[] => {
-  const out = list.map(w => ({ kind: w.kind, percentUsed: w.percentUsed, resetsAt: w.resetsAt }))
-  if (out.some(w => w.kind === 'seven_day') && !out.some(w => w.kind === 'five_hour')) out.push({ kind: 'five_hour', percentUsed: 0, resetsAt: undefined })
-  return out.sort((a, b) => (ORDER[a.kind] ?? 9) - (ORDER[b.kind] ?? 9))
-}
+/** Windows in the order the band draws them: 7-day first, then 5-hour. */
+export const clean = (list: readonly Window[]): Window[] =>
+  list
+    .map(w => ({ kind: w.kind, percentUsed: w.percentUsed, resetsAt: w.resetsAt }))
+    .sort((a, b) => (ORDER[a.kind] ?? 9) - (ORDER[b.kind] ?? 9))
 
 /** `left` percent as lit and unlit dots out of `cells`. */
 export const dots = (left: number, cells: number): { on: string; off: string } => {

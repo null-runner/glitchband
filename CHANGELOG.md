@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.2.1
+## 0.2.2
 
-- The 5-hour bar no longer vanishes after its reset: until the next reading it shows as a fresh window, 100% left.
+- Reverts 0.2.1: a plan without a 5-hour window (only weekly limits) would have shown a made-up 5-hour bar. The band draws only the windows the account reports.
 
 ## 0.2.0
 
