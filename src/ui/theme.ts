@@ -48,6 +48,8 @@ export const KW_COLORS = { on: HUE.warm, stopped: AMBER } as const
 /** The usage bars of the desktop: size in pixels, and the one-time grow and the sweep of the shine across the fill. */
 export const BAR_W = 96
 /** The shorter bar a crowded row falls back to. */
+/** The bar when it is the plan's only window (weekly-only plans): the row has the other window's room. */
+export const BAR_W_SOLO = 160
 export const BAR_W_SHORT = 64
 export const BAR_H = 10
 export const BAR_GROW_MS = 900

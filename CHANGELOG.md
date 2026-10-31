@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3
+
+- Weekly-only plans (no 5-hour window): the single 7D bar draws wider, and README and description no longer assume a 5-hour window.
+- A usage window of a kind the band does not know is named readably (seven_day_fable → 7D FABLE) instead of shouting its raw kind.
+
 ## 0.2.2
 
 - Reverts 0.2.1: a plan without a 5-hour window (only weekly limits) would have shown a made-up 5-hour bar. The band draws only the windows the account reports.

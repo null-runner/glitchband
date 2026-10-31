@@ -1,6 +1,6 @@
 # glitchband
 
-A band above the prompt for Claude Code. It shows how much of your 7-day and 5-hour usage is left, whether the prompt cache is WARM or COLD, what the next message costs, and it can hold the cache warm with a ping while you are away.
+A band above the prompt for Claude Code. It shows how much of your plan's usage is left (the 7-day window, and the 5-hour one on plans that still have it), whether the prompt cache is WARM or COLD, what the next message costs, and it can hold the cache warm with a ping while you are away.
 
 ![The band: usage bars, the warm netrunner, buttons](assets/preview/band-wide.png)
 
@@ -10,7 +10,7 @@ Warm and frozen netrunner, at 4x: ![warm](assets/preview/mascot-warm-4x.png) ![c
 
 ## What you see
 
-- Usage: one bar per window (7D violet, 5H teal) showing how much is left, with the percent and the time to reset. A window under 15% turns red and adds LOW. The terminal keeps dots.
+- Usage: one bar per window the account reports (7D violet, 5H teal) showing how much is left, with the percent and the time to reset. Weekly-only plans (the 20x tier since October 2026) get a single, wider 7D bar; a window the band does not know is named from its kind (`seven_day_fable` reads 7D FABLE). A window under 15% turns red and adds LOW. The terminal keeps dots.
 - Cache: after the first reply, WARM until the cache expires, then COLD. The lifetime (1 hour or 5 minutes) is read from the chat's transcript; 1 hour when it can't be read. COLD comes with the price of re-caching. The netrunner is lit with rising sparks while warm and frozen under ice while cold. The Show / Hide button opens a card with the idle time, the context size and the cost by model; it only opens when it fits the rows the band may take, and short of room its keepwarm strip folds to one line.
 - Keepwarm: a small select in the row, `KW Off`, `90m`, your window (6h), `12h` or `Always`, each doing what the `/keepwarm` command of that name does. The open card says the state in colour (`on until 18:30` with the next ping, `always on`, `stopped: <why>`, `off`), the pings sent with their estimated cost and the cold writes paid this session.
 - Handoff: once the context reaches `handoffAt` tokens, a `Refresh 612k` button sits in the row just before Show. Pressing it has the model write a handoff of the chat (goal, decisions, state, files, next step, open questions, what not to redo) to `~/.claude/handoffs/<date>-<session>.md`, then clears the chat and sends the handoff as the first message of the new one. If the chat cannot be cleared, the handoff is put in the prompt instead. The usage reset times always stay on the row; a short row drops the count, the USAGE word, shortens the bars and keepwarm's text, and only then the button.

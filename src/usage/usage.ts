@@ -31,6 +31,10 @@ export const fmtReset = (iso: string | undefined, now: number): string => {
   return fmtMinutes(Math.round(ms / 60000))
 }
 
+/** A kind the band has no name for, made readable: seven_day_fable → 7D FABLE. */
+const nameOf = (kind: string): string =>
+  kind.replace(/^seven_day/, t('window.sevenDay')).replace(/^five_hour/, t('window.fiveHour')).replace(/_/g, ' ').trim().toUpperCase()
+
 /** What the band draws for one window. */
 export const windowParts = (w: Window, cells: number, now: number) => {
   const left = Math.max(0, Math.round((100 - w.percentUsed) * 10) / 10)
@@ -38,7 +42,7 @@ export const windowParts = (w: Window, cells: number, now: number) => {
   return {
     left,
     col: WINDOW_COLORS[w.kind] ?? TEXT,
-    name: nameKey ? t(nameKey) : w.kind.toUpperCase(),
+    name: nameKey ? t(nameKey) : nameOf(w.kind),
     d: dots(left, cells),
     reset: fmtReset(w.resetsAt, now),
   }

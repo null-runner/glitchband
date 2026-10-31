@@ -13,7 +13,7 @@ import { readWindows, windowParts } from '../usage/usage'
 import { CHIP_WIDTHS, barSvg, chipSvg, justPinged, mascotSvg, wordOf } from './art'
 import { cardSvg } from './card'
 import {
-  BAR_H, BAR_W, BAR_W_SHORT, BELOW_ROWS, BG, SAFETY_PX, SELECT_CHROME, BTN_CHROME, CELL_PX, CHAR_PX, PAD_PX, CELLS, CHIP_EDGE, EMPTY, HEAD_ROWS, HUE, INK, KW_COLORS, KW_LONG_AT, KW_LONG_AT_TERMINAL, LOW_AT, LOW_COLOR, MASCOT_SIZE, MUTED, ROW_PX,
+  BAR_H, BAR_W, BAR_W_SHORT, BAR_W_SOLO, BELOW_ROWS, BG, SAFETY_PX, SELECT_CHROME, BTN_CHROME, CELL_PX, CHAR_PX, PAD_PX, CELLS, CHIP_EDGE, EMPTY, HEAD_ROWS, HUE, INK, KW_COLORS, KW_LONG_AT, KW_LONG_AT_TERMINAL, LOW_AT, LOW_COLOR, MASCOT_SIZE, MUTED, ROW_PX,
   TEXT, CARD_MAX_PX, TIGHT_CELLS, bandPx, kindOf,
 } from './theme'
 
@@ -69,6 +69,8 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
   const cells = kind === 'tight' ? TIGHT_CELLS : CELLS
 
   const parts = (w: Window) => windowParts(w, cells, now)
+  // A weekly-only plan has one window: its bar takes the room of two, until the row has to shorten bars.
+  const barAt = (lvl: number) => (lvl > 2 ? BAR_W_SHORT : list.length === 1 ? BAR_W_SOLO : BAR_W)
 
   // The bar of a window on the desktop (a drawing), the dots of the terminal (text). Under LOW the bar turns red.
   const meter = (p: ReturnType<typeof parts>, barW = BAR_W) =>
@@ -89,7 +91,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
     return (
       <Box key={`w-${i}`} flexDirection="row" flexShrink={0} alignItems="center" marginRight={compact ? 2 : 3}>
         <Text color={MUTED} bold>{p.name} </Text>
-        {meter(p, lvl > 2 ? BAR_W_SHORT : BAR_W)}
+        {meter(p, barAt(lvl))}
         <Text color={p.col} bold> {p.left}%{compact ? '' : ` ${t('band.left')}`}</Text>
         {p.left < LOW_AT ? <Text color={LOW_COLOR} bold>{` ${t('band.low')}`}</Text> : null}
         {p.reset ? <Text color={MUTED}>{` · ${lvl >= 6 ? shortReset(p.reset) : p.reset}`}</Text> : null}
@@ -265,7 +267,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
     for (const w of list) {
       const p = parts(w)
       const text = `${p.name}  ${p.left}%${compact ? '' : ` ${t('band.left')}`}${p.left < LOW_AT ? ` ${t('band.low')}` : ''}${p.reset ? ` · ${lvl >= 6 ? shortReset(p.reset) : p.reset}` : ''}`
-      px += textPx(text) + (Svg ? (lvl > 2 ? BAR_W_SHORT : BAR_W) : 0) + (compact ? 2 : 3) * CELL_PX
+      px += textPx(text) + (Svg ? barAt(lvl) : 0) + (compact ? 2 : 3) * CELL_PX
     }
     if (!open) {
       const word = CHIP_WIDTHS[`${wordOf(mode)}@13`]?.w ?? 70
