@@ -16,6 +16,12 @@ const OTHER_GUARD_COMMAND = 'cache-tax:status'
 
 const wordsOf = (e: RunEvent): string[] => String(e.args ?? '').trim().split(/\s+/).filter(Boolean)
 
+/** A window or a cache lifetime that is not a positive number (a bad option, a bad atom) gets its default, so a bare call can always arm. */
+function mend(s: State) {
+  if (!Number.isFinite(s.ttlMs) || s.ttlMs <= 0) s.ttlMs = TTL_MS
+  if (!Number.isFinite(s.window) || s.window < MIN_PING_MS) s.window = DEFAULT_WINDOW_MS
+}
+
 /** Registers /keepwarm and /glitchband, and says so when another cache guard is installed beside them. */
 export async function registerCommands($: EngineInterface, s: State): Promise<void> {
   await $.command.register({
@@ -35,6 +41,7 @@ export async function registerCommands($: EngineInterface, s: State): Promise<vo
 }
 
 export async function keepwarmCommand(s: State, $: EngineInterface, e: RunEvent) {
+  mend(s)
   await reseat($, s)
   const words = wordsOf(e)
   const now = await $.clock.now()

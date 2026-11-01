@@ -1,8 +1,10 @@
 import { describe, expect, mock, tier } from 'claude-code/testing'
 import type { MockClock, Plugin, TestBody } from 'claude-code/testing'
-import type { CommandRunInput, ModelForkResult, On, PromptSubmitInput, SessionStartInput, TurnCompleteInput, TurnUsage } from 'claude-code'
+import type { CommandRunInput, EngineInterface, ModelForkResult, On, PromptSubmitInput, SessionStartInput, TurnCompleteInput, TurnUsage } from 'claude-code'
 
-import { fmtDuration, freshState, parseDuration, resetForClear, seedFromResume, statusText } from '../src/keepwarm/engine'
+import { keepwarmCommand } from '../src/keepwarm/commands'
+import { fmtDuration, freshState, parseDuration, resetForClear, seedFromResume, sessionStart, statusText } from '../src/keepwarm/engine'
+import type { State } from '../src/keepwarm/engine'
 import { testEn as test } from './lang'
 
 tier('user')
@@ -2201,5 +2203,104 @@ describe('a 5-minute cache', () => {
     await clock.advance(1000)
     expect(w.forks.length).toBe(1)
     expect((await $.command.run(run('keepwarm', '2h every 5m'))).text).toBe('every takes a period from 1m to 4m')
+  })
+})
+
+// A /reload-plugins or a worker respawn starts the module's state over while the store and the atoms survive. This engine
+// keeps both in plain maps and runs timers by hand, so a test can start a second state over the first one's leftovers.
+function survivors(o: { sid?: () => string } = {}) {
+  let now = START
+  const store = new Map<string, unknown>()
+  const atoms = new Map<string, { value: unknown; version: number }>()
+  const timers: Array<{ at: number; fn: () => void; dead: boolean }> = []
+  const answers: ModelForkResult[] = []
+  const at = (ref: { plugin: string; key: string }) => atoms.get(`${ref.plugin}/${ref.key}`) ?? { value: undefined, version: 0 }
+  const engine = {
+    session: {
+      id: async () => o.sid?.() ?? 'S1',
+      model: async () => 'claude-fable-5-1',
+      usage: async () => ({ startedAt: START, context: { window: 1000000, tokens: undefined }, rateLimits: [] }),
+    },
+    clock: {
+      now: async () => now,
+      after: (ms: number, fn: () => void) => {
+        const timer = { at: now + ms, fn, dead: false }
+        timers.push(timer)
+        return { cancel: () => { timer.dead = true } }
+      },
+    },
+    store: {
+      get: async (k: string) => store.get(k),
+      set: async (k: string, v: unknown) => { store.set(k, v) },
+      delete: async (k: string) => { store.delete(k) },
+    },
+    state: {
+      get: async (ref: { plugin: string; key: string }) => at(ref),
+      set: async (ref: { plugin: string; key: string }, value: unknown, opt?: { ifVersion?: number }) => {
+        const cur = at(ref)
+        if (opt?.ifVersion !== undefined && opt.ifVersion !== cur.version) return { isSet: false, version: cur.version }
+        atoms.set(`${ref.plugin}/${ref.key}`, { value, version: cur.version + 1 })
+        return { isSet: true, version: cur.version + 1 }
+      },
+    },
+    ui: { log: () => undefined },
+    model: { fork: async () => answers.shift() ?? null },
+  } as unknown as EngineInterface
+  const advance = async (ms: number) => {
+    const target = now + ms
+    for (;;) {
+      const due = timers.filter(t => !t.dead && t.at <= target).sort((x, y) => x.at - y.at)[0]
+      if (!due) break
+      due.dead = true
+      now = Math.max(now, due.at)
+      due.fn()
+      await new Promise(r => setTimeout(r, 0))
+    }
+    now = target
+  }
+  const answer = (read: number, write: number) => answers.push({ isAnswered: true, text: 'warm', usage: { input_tokens: 2, output_tokens: 1, cache_read_input_tokens: read, cache_creation_input_tokens: write } })
+  return { $: engine, advance, answer, store }
+}
+
+const startOver = async ($: EngineInterface, options?: { window?: number }): Promise<State> => {
+  const fresh = freshState(options)
+  await sessionStart(fresh, $, session, async e => ({ cwd: e.cwd }))
+  return fresh
+}
+
+describe('a bare /keepwarm always arms the window', () => {
+  const ARMED = /^keepwarm on for 6h00m/
+
+  test('after a resume, with always on and a cache seen as 1h', async ($, on) => {
+    mockClock(on, { now: START })
+    world(on, [], { store: new Map<string, unknown>([['glitchband.always', true]]) })
+    await $.session.start({ ...session, surface: 'desktop', isInteractive: true })
+    await $.classic.SessionStart({ session_id: 'S1', source: 'resume', seconds_since_last_response: 600, context_tokens: 200000 })
+    expect((await $.command.run(run('keepwarm', ''))).text).toMatch(ARMED)
+    await $.turn.complete(turn())
+    expect((await $.command.run(run('keepwarm', ''))).text).toMatch(ARMED)
+  })
+
+  test('after a reload that restarts the module state over the surviving store', async () => {
+    const w = survivors()
+    const first = await startOver(w.$)
+    expect((await keepwarmCommand(first, w.$, run('keepwarm', 'always'))).text).toMatch(/^keepwarm always on/)
+    const fresh = await startOver(w.$)
+    expect(fresh.always).toBe(true)
+    expect((await keepwarmCommand(fresh, w.$, run('keepwarm', ''))).text).toMatch(ARMED)
+    expect((await keepwarmCommand(fresh, w.$, { ...run('keepwarm', ''), args: undefined })).text).toMatch(ARMED)
+    expect((await keepwarmCommand(fresh, w.$, { ...run('keepwarm', ''), args: ['  '] as unknown as string })).text).toMatch(ARMED)
+  })
+
+  test('a window or a cache lifetime that is not a positive number falls back to the defaults', async () => {
+    const w = survivors()
+    const bad = freshState({ window: Number.NaN })
+    bad.ttlMs = Number.NaN
+    expect((await keepwarmCommand(bad, w.$, run('keepwarm', ''))).text).toMatch(ARMED)
+    expect(bad.ttlMs).toBe(HOUR)
+    expect(bad.every).toBeGreaterThanOrEqual(MIN)
+    const zero = freshState({ window: 0 })
+    zero.ttlMs = 0
+    expect((await keepwarmCommand(zero, w.$, run('keepwarm', ''))).text).toMatch(ARMED)
   })
 })
