@@ -64,7 +64,7 @@ A value outside its range, or of the wrong type, falls back to its default.
 
 ## What the pings cost
 
-Each ping is one request to the model on the session transcript, sent inside the armed window: half the cache's life after inactivity: 30 minutes for a 1-hour cache, 2 minutes 30 seconds for a 5-minute one. It costs a cache read plus an answer of a few words. The cost is estimated with list prices kept in the code (`PRICES` in `src/keepwarm/engine.ts`) and summed on the card. Keepwarm stops by itself when a ping reads nothing or writes more than 10% of what it reads. On a subscription the dollars are a yardstick, not a bill. The mod makes no network calls of its own.
+Each ping is one request to the model on the session transcript, sent inside the armed window: half the cache's life after inactivity: 30 minutes for a 1-hour cache, 2 minutes 30 seconds for a 5-minute one. It costs a cache read plus an answer of a few words. The cost is estimated with list prices kept in the code (`PRICES` in `src/cache/cache.ts`, the one table the band, the guard and the card read) and summed on the card. Keepwarm stops by itself when a ping reads nothing or writes more than 10% of what it reads. On a subscription the dollars are a yardstick, not a bill. The mod makes no network calls of its own.
 
 ## Credits
 

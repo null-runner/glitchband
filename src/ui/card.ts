@@ -122,10 +122,10 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
       ? { lab: 24, base: 100, rows: 6, step: 7, chip: 58, price: 88, name: 102 }
       : { lab: 30, base: 116, rows: 8, step: 8, chip: 70, price: 104, name: 120 }
     let g = txt(x, y + k.lab, t(cold ? 'card.cost' : 'card.costCached'), { ls: 1.4 })
-    const top = Math.max(...MODELS.map(m => coldCost(m, v.tokens, v.ttlMin * 60000)))
+    const top = Math.max(...MODELS.map(m => coldCost(m, v.tokens, v.ttlMin * 60000, m.id === v.mine ? v.model : null)))
     MODELS.forEach((m, i) => {
       const mine = m.id === v.mine
-      const n = top > 0 ? Math.max(1, Math.round((costOf(m, mode, v.tokens, v.ttlMin * 60000) / top) * k.rows)) : 1
+      const n = top > 0 ? Math.max(1, Math.round((costOf(m, mode, v.tokens, v.ttlMin * 60000, mine ? v.model : null) / top) * k.rows)) : 1
       const bx = x + i * colW
       for (let c = 0; c < BARS_PER_MODEL; c++) {
         g += `<g class="${intro ? `k-in k-b${i * BARS_PER_MODEL + c}` : 'k-bar'}">`
@@ -133,7 +133,7 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number, kw: KeepwarmCard, i
         g += '</g>'
       }
       if (mine) g += chipShapes(bx + PRICE_DX, y + k.chip, t('card.you'), mode, 10, 0.8).svg
-      g += txt(bx + PRICE_DX, y + k.price, price(costOf(m, mode, v.tokens, v.ttlMin * 60000)), { size: 16, w: mine ? 700 : 500, fill: mine ? TEXT : MUTED })
+      g += txt(bx + PRICE_DX, y + k.price, price(costOf(m, mode, v.tokens, v.ttlMin * 60000, mine ? v.model : null)), { size: 16, w: mine ? 700 : 500, fill: mine ? TEXT : MUTED })
       g += txt(bx + PRICE_DX, y + k.name, m.NAME, { size: 11, w: 700, fill: mine ? HUEM : MUTED, ls: 0.8 })
     })
     return g

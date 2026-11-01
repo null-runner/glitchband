@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Events } from 'claude-code'
 
 import type { KeepwarmFacts, Ping } from '../../types'
-import { TTL_MS, readCache, stampRequest, ttlMsOf, writeMultiple } from '../cache/cache'
+import { TTL_MS, priceOf, readCache, stampRequest, ttlMsOf, writeMultiple } from '../cache/cache'
 import { fmtInt, t } from '../i18n'
 
 // Ported from cache-tax 2.3.1 (Karan Bansal, MIT). The behaviour is the original's; what changed is where it
@@ -25,34 +25,6 @@ export const KEY_ALWAYS = 'glitchband.always'
 // other origin, including sdk, unclassified and the owner's own Slack or channel
 // messages, may carry a person's words and keeps the guard.
 const UNATTENDED = new Set(['task-notification', 'scheduled-trigger', 'peer', 'peer-send-message', 'projects-relay', 'coordinator', 'observer', 'observer-activity'])
-
-const LONG_PROMPT_TOKENS = 100000
-
-// $ per million tokens, [cache read, 1h cache write, output], list prices October 2026.
-// More specific families first: a model id takes the first row it matches.
-const PRICES: Array<[string | RegExp, number, number, number]> = [
-  ['fable-5-1', 0.25, 20, 50],
-  ['mythos-5-1', 0.25, 20, 50],
-  ['fable-5', 1, 20, 50],
-  ['mythos-5', 1, 20, 50],
-  ['opus-5-5', 0.2, 8, 20],
-  ['opus-5', 0.5, 10, 25],
-  // Opus 4 and 4.1 in every spelling (claude-opus-4-1-20250805, claude-opus-4@20250514, the -0 and -1 aliases), never Opus 4.5 and later.
-  [/opus-4(?:-[01])?(?:$|[^-\d]|-20\d{6})/, 1.5, 30, 75],
-  ['opus-4', 0.5, 10, 25],
-  ['sonnet-5-5', 0.1, 4, 10],
-  ['sonnet-5', 0.2, 4, 10],
-  ['sonnet', 0.3, 6, 15],
-  ['haiku-5-5', 0.01, 0.2, 0.5],
-  ['3-5-haiku', 0.08, 1.6, 4],
-  ['haiku-3-5', 0.08, 1.6, 4],
-  ['haiku', 0.1, 2, 5],
-]
-
-// A request whose prompt, cache reads and writes included, is over 100k tokens pays these instead.
-const LONG_PRICES: Array<[string, number, number, number]> = [
-  ['haiku-5-5', 0.05, 1, 2.5],
-]
 
 type Miss = { at: number; tokens: number; usd: number | null }
 type GuardMode = 'refuse' | 'warn'
@@ -100,20 +72,6 @@ export type State = {
 
 /** What this turn's main requests wrote before any compaction it saw, priced per request where the steps reported usage. */
 type StepWrites = { tokens: number; usd: number; priced: boolean }
-
-// The table's write column is the 1-hour rate; a 5-minute write is cheaper, so its column is scaled to 1.25x input.
-function priceOf(model: string | null, promptTokens: number, ttlMs = TTL_MS): [number, number, number] | null {
-  const scale = writeMultiple(ttlMs) / 2
-  const row = ([read, write, output]: [number, number, number]): [number, number, number] => [read, write * scale, output]
-  const m = (model ?? '').toLowerCase().replace(/[\s.]+/g, '-')
-  if (promptTokens > LONG_PROMPT_TOKENS) {
-    for (const [family, read, write, output] of LONG_PRICES) if (m.includes(family)) return row([read, write, output])
-  }
-  for (const [family, read, write, output] of PRICES) {
-    if (typeof family === 'string' ? m.includes(family) : family.test(m)) return row([read, write, output])
-  }
-  return null
-}
 
 export function parseDuration(text: string): number | null {
   const m = /^(?:(\d+)h)?(?:(\d+)m)?$/.exec(text.trim())

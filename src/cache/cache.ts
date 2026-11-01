@@ -19,15 +19,55 @@ export const ttlMsOf = (ttl: Ttl | null | undefined): number => (ttl === '5m' ? 
 /** What a cache write costs as a multiple of input: 2 for the 1-hour cache, 1.25 for the 5-minute one. */
 export const writeMultiple = (ttlMs: number): number => (ttlMs < TTL_MS ? 1.25 : 2)
 
-// $ per million tokens: input, and the cache read. The cache write is 2 times input
-// for 1 hour and 1.25 times for 5 minutes. Haiku 5.5 is $0.10 up to 100K tokens and $0.50 above; long sessions use the
-// higher rate.
-export type Model = { id: string; NAME: string; input: number; read: number }
+// $ per million tokens, [cache read, 1h cache write, output], list prices October 2026: the one table the band, the guard,
+// /glitchband and the ping receipts all read. A 5-minute write is cheaper than the table's 1-hour column and is scaled in priceOf.
+// More specific families first: a model id takes the first row it matches.
+const LONG_PROMPT_TOKENS = 100000
+const PRICES: Array<[string | RegExp, number, number, number]> = [
+  ['fable-5-1', 0.25, 20, 50],
+  ['mythos-5-1', 0.25, 20, 50],
+  ['fable-5', 1, 20, 50],
+  ['mythos-5', 1, 20, 50],
+  ['opus-5-5', 0.2, 8, 20],
+  ['opus-5', 0.5, 10, 25],
+  // Opus 4 and 4.1 in every spelling (claude-opus-4-1-20250805, claude-opus-4@20250514, the -0 and -1 aliases), never Opus 4.5 and later.
+  [/opus-4(?:-[01])?(?:$|[^-\d]|-20\d{6})/, 1.5, 30, 75],
+  ['opus-4', 0.5, 10, 25],
+  ['sonnet-5-5', 0.1, 4, 10],
+  ['sonnet-5', 0.2, 4, 10],
+  ['sonnet', 0.3, 6, 15],
+  ['haiku-5-5', 0.01, 0.2, 0.5],
+  ['3-5-haiku', 0.08, 1.6, 4],
+  ['haiku-3-5', 0.08, 1.6, 4],
+  ['haiku', 0.1, 2, 5],
+]
+
+// A request whose prompt, cache reads and writes included, is over 100k tokens pays these instead.
+const LONG_PRICES: Array<[string, number, number, number]> = [
+  ['haiku-5-5', 0.05, 1, 2.5],
+]
+
+// The table's write column is the 1-hour rate; a 5-minute write is cheaper, so its column is scaled to 1.25x input.
+export function priceOf(model: string | null, promptTokens: number, ttlMs = TTL_MS): [number, number, number] | null {
+  const scale = writeMultiple(ttlMs) / 2
+  const row = ([read, write, output]: [number, number, number]): [number, number, number] => [read, write * scale, output]
+  const m = (model ?? '').toLowerCase().replace(/[\s.]+/g, '-')
+  if (promptTokens > LONG_PROMPT_TOKENS) {
+    for (const [family, read, write, output] of LONG_PRICES) if (m.includes(family)) return row([read, write, output])
+  }
+  for (const [family, read, write, output] of PRICES) {
+    if (typeof family === 'string' ? m.includes(family) : family.test(m)) return row([read, write, output])
+  }
+  return null
+}
+
+// The card's four comparison rows. `rep` is the model that prices a row when the session's own model is not that row.
+export type Model = { id: string; NAME: string; rep: string }
 export const MODELS: Model[] = [
-  { id: 'fable', NAME: 'FABLE', input: 10, read: 0.25 },
-  { id: 'opus', NAME: 'OPUS', input: 4, read: 0.2 },
-  { id: 'sonnet', NAME: 'SONNET', input: 2, read: 0.2 },
-  { id: 'haiku', NAME: 'HAIKU', input: 0.5, read: 0.05 },
+  { id: 'fable', NAME: 'FABLE', rep: 'fable-5-1' },
+  { id: 'opus', NAME: 'OPUS', rep: 'opus-5-5' },
+  { id: 'sonnet', NAME: 'SONNET', rep: 'sonnet-5-5' },
+  { id: 'haiku', NAME: 'HAIKU', rep: 'haiku-5-5' },
 ]
 
 /** Which row of MODELS a model id belongs to, or null for one the card doesn't price. */
@@ -36,9 +76,13 @@ export const familyOf = (model: string | null | undefined): string | null => {
   return MODELS.find(x => m.includes(x.id))?.id ?? null
 }
 
-export const coldCost = (m: Model, tokens: number, ttlMs = TTL_MS): number => (tokens / 1e6) * m.input * writeMultiple(ttlMs)
-export const warmCost = (m: Model, tokens: number): number => (tokens / 1e6) * m.read
-export const costOf = (m: Model, mode: Mode, tokens: number, ttlMs = TTL_MS): number => (mode === 'cold' ? coldCost(m, tokens, ttlMs) : warmCost(m, tokens))
+/** The row's price for this prompt: the session's own model when it is the row's, the row's representative otherwise. */
+const rowPrice = (m: Model, tokens: number, ttlMs: number, model?: string | null): [number, number, number] =>
+  (model ? priceOf(model, tokens, ttlMs) : null) ?? priceOf(m.rep, tokens, ttlMs)!
+
+export const coldCost = (m: Model, tokens: number, ttlMs = TTL_MS, model?: string | null): number => (tokens * rowPrice(m, tokens, ttlMs, model)[1]) / 1e6
+export const warmCost = (m: Model, tokens: number, ttlMs = TTL_MS, model?: string | null): number => (tokens * rowPrice(m, tokens, ttlMs, model)[0]) / 1e6
+export const costOf = (m: Model, mode: Mode, tokens: number, ttlMs = TTL_MS, model?: string | null): number => (mode === 'cold' ? coldCost(m, tokens, ttlMs, model) : warmCost(m, tokens, ttlMs, model))
 export const usd = (n: number): string => '$' + n.toFixed(2)
 export const tok = (n: number): string => (n >= 1e6 ? `${Number((n / 1e6).toFixed(1))}M` : `${Math.round(n / 1000)}k`)
 
@@ -60,6 +104,8 @@ export type CacheView = {
   window: number
   /** This session's MODELS id, or null when the model isn't priced. */
   mine: string | null
+  /** The session's own model id, which prices its row. */
+  model?: string | null
 }
 
 export const mineModel = (v: CacheView): Model | undefined => MODELS.find(m => m.id === v.mine)
@@ -77,6 +123,7 @@ export const viewOf = (c: CacheFacts | null, now: number): CacheView | null => {
     tokens: c.tokens,
     window: c.window,
     mine: familyOf(c.model),
+    model: c.model,
   }
 }
 

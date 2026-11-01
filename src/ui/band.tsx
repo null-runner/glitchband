@@ -224,7 +224,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
     ? [
         <Text key="idle" color={hue} bold>{` ${view.idle}`}</Text>,
         mine ? <Text key="dot" color={MUTED}> · </Text> : null,
-        mine ? <Text key="cost" color={TEXT} bold>{usd(costOf(mine, mode, view.tokens, view.ttlMin * 60000))}</Text> : null,
+        mine ? <Text key="cost" color={TEXT} bold>{usd(costOf(mine, mode, view.tokens, view.ttlMin * 60000, view.model))}</Text> : null,
       ]
     : [<Text key="left" color={hue} bold>{` ${Math.max(0, view.ttlMin - view.idleMin)}${t('unit.m')}${compact ? '' : ` ${t('band.left')}`}`}</Text>]
 
@@ -313,7 +313,7 @@ export async function renderBand($: RenderArgs[0], e: RenderArgs[1], next: Rende
             <Text color={hue} bold>{cold ? t('band.idle', { time: view.idle }) : `${Math.max(0, view.ttlMin - view.idleMin)}${t('unit.m')} ${t('band.left')}`}</Text>
             {mine ? (
               <Box flexDirection="row">
-                <Text color={TEXT} bold>{usd(costOf(mine, mode, view.tokens, view.ttlMin * 60000))}</Text>
+                <Text color={TEXT} bold>{usd(costOf(mine, mode, view.tokens, view.ttlMin * 60000, view.model))}</Text>
                 <Text color={MUTED}>{` ${t('band.next')}`}</Text>
               </Box>
             ) : null}

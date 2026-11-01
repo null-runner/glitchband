@@ -2,9 +2,9 @@ import { describe, expect, mock, tier } from 'claude-code/testing'
 import type { MockClock, Plugin, TestBody } from 'claude-code/testing'
 import type { CommandRunInput, EngineInterface, ModelForkResult, On, PromptSubmitInput, SessionStartInput, TurnCompleteInput, TurnUsage } from 'claude-code'
 
-import { clearCache, readCache, seedCache, setTtl as setCacheTtl, viewOf } from '../src/cache/cache'
+import { MODELS, clearCache, coldCost, costOf, readCache, seedCache, setTtl as setCacheTtl, viewOf } from '../src/cache/cache'
 import { keepwarmCommand } from '../src/keepwarm/commands'
-import { fmtDuration, freshState, pingAfterMs, parseDuration, readKeepwarm, resetForClear, seedFromResume, sessionStart, statusText, turnComplete } from '../src/keepwarm/engine'
+import { coldUsd, fmtDuration, freshState, pingAfterMs, parseDuration, readKeepwarm, resetForClear, seedFromResume, sessionStart, statusText, turnComplete, warmUsd } from '../src/keepwarm/engine'
 import type { State } from '../src/keepwarm/engine'
 import { testEn as test } from './lang'
 
@@ -2380,4 +2380,20 @@ describe('the cache lifetime survives a reload and a clear', () => {
     expect(kept?.ttl).toBe('5m')
     expect(viewOf(kept, START + MIN)).toBe(null)
   })
+})
+
+describe('one price table', () => {
+  for (const [model, family] of [['claude-fable-5', 'fable'], ['claude-opus-4-5', 'opus'], ['claude-sonnet-4-5', 'sonnet'], ['claude-haiku-4-5', 'haiku'], ['claude-sonnet-5-5', 'sonnet']] as const) {
+    for (const ttl of [HOUR, 5 * MIN]) {
+      test(`${model}, ${ttl / MIN}m cache: the band, the guard and /glitchband show the same cold and warm cost`, () => {
+        const s = freshState()
+        s.lastModel = model
+        s.ctx = 300000
+        s.ttlMs = ttl
+        const row = MODELS.find(m => m.id === family)!
+        expect(coldCost(row, 300000, ttl, model)).toBe(coldUsd(s)!)
+        expect(costOf(row, 'warm', 300000, ttl, model)).toBe(warmUsd(s)!)
+      })
+    }
+  }
 })
