@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Events } from 'claude-code'
 
 import type { KeepwarmFacts, Ping } from '../../types'
-import { TTL_MS, readCache, stampRequest, writeMultiple } from '../cache/cache'
+import { TTL_MS, readCache, stampRequest, ttlMsOf, writeMultiple } from '../cache/cache'
 import { fmtInt, t } from '../i18n'
 
 // Ported from cache-tax 2.3.1 (Karan Bansal, MIT). The behaviour is the original's; what changed is where it
@@ -565,7 +565,13 @@ export async function sessionStart(s: State, $: EngineInterface, e: Ev<'session.
   const now = await seat($, s)
   // A /reload-plugins runs session.start again with this module's state started over; the session's cache facts
   // survive it and keep the last request's time, so a reload is not taken for a resume without one.
-  const kept = (await readCache($))?.lastAt ?? 0
+  const cached = await readCache($)
+  const kept = cached?.lastAt ?? 0
+  // The lifetime the transcript showed is in the cache facts too; without it a 5-minute cache would be pinged as an hour's.
+  if (cached?.ttl) {
+    s.ttlMs = ttlMsOf(cached.ttl)
+    s.ttlSeen = true
+  }
   if (!s.lastRequestAt && kept > 0) {
     s.lastRequestAt = kept
     s.resumedAt = 0

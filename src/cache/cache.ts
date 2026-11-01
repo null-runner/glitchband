@@ -116,9 +116,9 @@ export async function setTtl($: EngineInterface, ttl: Ttl): Promise<void> {
   await update($, cache, c => ({ lastAt: 0, tokens: 0, window: 0, model: null, ...c, ttl }))
 }
 
-/** A cleared or compacted conversation has no cache to show until its next reply. */
+/** A cleared or compacted conversation has no cache to show until its next reply; the lifetime it was seen with stays. */
 export async function clearCache($: EngineInterface): Promise<void> {
-  await update($, cache, () => null)
+  await update($, cache, c => (c?.ttl ? { lastAt: 0, tokens: 0, window: 0, model: null, ttl: c.ttl } : null))
   await update($, fold, () => null)
 }
 

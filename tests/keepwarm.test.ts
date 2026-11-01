@@ -2,6 +2,7 @@ import { describe, expect, mock, tier } from 'claude-code/testing'
 import type { MockClock, Plugin, TestBody } from 'claude-code/testing'
 import type { CommandRunInput, EngineInterface, ModelForkResult, On, PromptSubmitInput, SessionStartInput, TurnCompleteInput, TurnUsage } from 'claude-code'
 
+import { clearCache, readCache, seedCache, setTtl as setCacheTtl, viewOf } from '../src/cache/cache'
 import { keepwarmCommand } from '../src/keepwarm/commands'
 import { fmtDuration, freshState, pingAfterMs, parseDuration, readKeepwarm, resetForClear, seedFromResume, sessionStart, statusText, turnComplete } from '../src/keepwarm/engine'
 import type { State } from '../src/keepwarm/engine'
@@ -2357,5 +2358,26 @@ describe('a reload keeps what the session has paid', () => {
     expect(other.pings).toBe(0)
     expect(other.last).toBe(null)
     expect(other.misses.length).toBe(0)
+  })
+})
+
+describe('the cache lifetime survives a reload and a clear', () => {
+  test('after a reload the lifetime and the default period come from the cache facts', async () => {
+    const w = survivors()
+    await setCacheTtl(w.$, '5m')
+    const fresh = await startOver(w.$)
+    expect(fresh.ttlMs).toBe(5 * MIN)
+    expect(fresh.ttlSeen).toBe(true)
+    expect(fresh.every).toBe(pingAfterMs(5 * MIN))
+  })
+
+  test('clearing the cache facts keeps the lifetime and empties the rest', async () => {
+    const w = survivors()
+    await setCacheTtl(w.$, '5m')
+    await seedCache(w.$, START, 200000, 1000000, 'claude-fable-5-1')
+    await clearCache(w.$)
+    const kept = await readCache(w.$)
+    expect(kept?.ttl).toBe('5m')
+    expect(viewOf(kept, START + MIN)).toBe(null)
   })
 })
