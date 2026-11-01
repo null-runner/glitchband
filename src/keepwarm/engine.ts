@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Events } from 'claude-code'
 
 import type { KeepwarmFacts, Ping } from '../../types'
-import { TTL_MS, readCache, writeMultiple } from '../cache/cache'
+import { TTL_MS, readCache, stampRequest, writeMultiple } from '../cache/cache'
 import { fmtInt, t } from '../i18n'
 
 // Ported from cache-tax 2.3.1 (Karan Bansal, MIT). The behaviour is the original's; what changed is where it
@@ -498,6 +498,8 @@ async function ping($: EngineInterface, s: State) {
   s.pingUsd += usd ?? 0
   if (!warm) return stop($, s, t('stop.gone', { read: fmtTok(u.cache_read_input_tokens), write: fmtTok(u.cache_creation_input_tokens), usd: fmtUsd(usd) }))
   s.lastRequestAt = now
+  // The ping read the cache and restarted its lifetime: the band's clock moves with it, or it shows COLD at the hour.
+  await stampRequest($, now)
   await arm($, s)
 }
 

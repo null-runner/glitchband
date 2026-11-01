@@ -1,6 +1,6 @@
 {
   "name": "glitchband",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "A band above the prompt: your plan's usage windows (7-day, and 5-hour where the plan has one), prompt cache WARM or COLD with the price of the next message, and keepwarm to hold the cache.",
   "author": {
     "name": "null-runner",

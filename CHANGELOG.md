@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.4
+
+- A warm keepwarm ping now restarts the band's cache clock too: the cache stayed warm, but the band showed COLD an hour after the last reply.
+
 ## 0.2.3
 
 - Weekly-only plans (no 5-hour window): the single 7D bar draws wider, and README and description no longer assume a 5-hour window.

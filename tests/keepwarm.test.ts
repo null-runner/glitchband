@@ -447,6 +447,20 @@ describe('keepwarm', () => {
     expect(w.forks.length).toBe(1)
   })
 
+  test('a warm ping keeps the band WARM past the hour, not just the keepwarm clock', async ($, on) => {
+    const clock = mockClock(on, { now: START })
+    world(on, [warm, warm], { live: { tokens: 200000 } })
+    await $.session.start(session)
+    await $.command.run(run('keepwarm', ''))
+    await $.turn.complete(turn())
+    await clock.advance(70 * MIN)
+    const band = await $.ui.mount({ plugin: 'glitchband', surface: 'desktop', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 14, bodyColumns: 140, scroll: { offset: 0, bodyRows: 14 }, view: {} } as never })
+    const alts = (await band.findAll({ type: 'Svg' })).map(x => String(x.props.alt))
+    expect(alts).toContain('WARM')
+    expect(alts).not.toContain('COLD')
+    await band.unmount()
+  })
+
   test('always is remembered, arms every session start, and off ends it for good', async ($, on) => {
     const clock = mockClock(on, { now: START })
     const store = new Map<string, unknown>([['glitchband.always', true], ['glitchband.deadline:S1', START - MIN], ['glitchband.every:S1', MIN]])

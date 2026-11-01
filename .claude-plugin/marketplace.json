@@ -12,7 +12,7 @@
       "name": "glitchband",
       "source": "./",
       "description": "Mod: band above the prompt with your plan's usage windows, prompt cache WARM or COLD, the price of the next message and keepwarm.",
-      "version": "0.2.3",
+      "version": "0.2.4",
       "category": "mod"
     }
   ]
