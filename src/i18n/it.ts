@@ -42,6 +42,9 @@ export const it: Record<Key, string> = {
   'card.kwAlways': 'sempre attivo',
   'card.kwStopped': 'fermo: {why}',
   'card.kwNext': 'prossimo ping ~{time}',
+  'card.kwWaiting': 'in attesa del tuo prossimo turno',
+  'card.kwCompacted': 'in attesa del primo turno dopo la compattazione',
+  'card.kwRetry': 'API occupata, nuovo tentativo del ping {n} di {max}',
   'kw.offButton': 'Off',
 
   'card.idle': 'INATTIVA',

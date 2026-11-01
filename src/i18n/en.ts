@@ -41,6 +41,9 @@ export const en = {
   'card.kwAlways': 'always on',
   'card.kwStopped': 'stopped: {why}',
   'card.kwNext': 'next ping ~{time}',
+  'card.kwWaiting': 'waiting for your next turn',
+  'card.kwCompacted': 'waiting for the first turn after compaction',
+  'card.kwRetry': 'API busy, ping retry {n} of {max}',
 
   'card.idle': 'IDLE',
   'card.warmHour': 'warm 1h',

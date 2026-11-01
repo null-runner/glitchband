@@ -2,7 +2,7 @@ import { expect, mock } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 
 import { setLanguage } from '../src/i18n'
-import { kwCard } from '../src/keepwarm/view'
+import { kwCard, kwValue } from '../src/keepwarm/view'
 import { cardSvg } from '../src/ui/card'
 import { AMBER, HUE, BTN_CHROME, SAFETY_PX, SELECT_CHROME, CELL_PX, CHAR_PX, CHIP_EDGE, PAD_PX } from '../src/ui/theme'
 import { answerSession } from './answers'
@@ -245,4 +245,26 @@ test('the card says the state in colour: on in coral with the next ping, stopped
   const svg = cardSvg({ mode: 'warm', idle: '18m', idleMin: 18, tokens: 770000, window: 1000000, mine: 'opus' }, 'wide', 1000, on).source
   expect(svg).toMatch(new RegExp(`fill="${HUE.warm}"[^>]*>on until`))
   expect(cardSvg({ mode: 'warm', idle: '18m', idleMin: 18, tokens: 770000, window: 1000000, mine: 'opus' }, 'wide', 1000, stopped).source).toMatch(new RegExp(`fill="${AMBER}"[^>]*>stopped:`))
+})
+
+const FACTS = { deadline: 0, every: 30 * 60_000, always: false, lastRequestAt: 0, compacted: false, waitForTurn: false, retries: 0, stopped: null, last: null, pings: 0, pingUsd: 0, coldWrites: 0, coldUsd: 0 }
+
+test('a stopped loop reads stopped even when always is on', () => {
+  setLanguage('en')
+  const now = Date.parse('2098-12-31T22:00:00Z')
+  const f = { ...FACTS, always: true, stopped: 'the API call failed (429)' }
+  expect(kwValue(f, now)).toMatchObject({ tone: 'stopped', text: 'stopped' })
+  expect(kwCard(f, now)).toMatchObject({ tone: 'stopped', state: 'stopped: the API call failed (429)' })
+  expect(kwValue({ ...f, stopped: null }, now)).toMatchObject({ tone: 'on', text: 'always' })
+})
+
+test('the card says why no ping is coming instead of promising one', () => {
+  setLanguage('en')
+  const now = Date.parse('2098-12-31T22:00:00Z')
+  const open = { ...FACTS, deadline: now + 5 * HOUR, lastRequestAt: now - 10 * 60_000 }
+  expect(kwCard(open, now).note).toMatch(/^next ping ~\d\d:\d\d$/)
+  expect(kwCard({ ...open, waitForTurn: true }, now).note).toBe('waiting for your next turn')
+  expect(kwCard({ ...open, compacted: true }, now).note).toBe('waiting for the first turn after compaction')
+  expect(kwCard({ ...open, retries: 2 }, now).note).toBe('API busy, ping retry 2 of 3')
+  expect(kwCard({ ...open, always: true, deadline: 0, waitForTurn: true }, now).note).toBe('waiting for your next turn')
 })

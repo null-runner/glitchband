@@ -11,7 +11,7 @@ import { fmtInt, t } from '../i18n'
 /** How long after a request the default ping goes out: half the cache's life, so a slow fork still lands inside it. */
 export const pingAfterMs = (ttlMs: number): number => ttlMs / 2
 export const MIN_PING_MS = 60 * 1000
-const MAX_RETRIES = 3
+export const MAX_RETRIES = 3
 const AUTO_WARM_MS = 3 * 60 * 60 * 1000
 export const DEFAULT_WINDOW_MS = 6 * 60 * 60 * 1000
 const BIG_TOKENS = 50000

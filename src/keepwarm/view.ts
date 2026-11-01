@@ -1,7 +1,7 @@
 import type { KeepwarmFacts } from '../../types'
 import { t } from '../i18n'
 import type { KeepwarmCard } from '../ui/card'
-import { fmtUsd } from './engine'
+import { MAX_RETRIES, fmtUsd } from './engine'
 
 export type Tone = 'on' | 'off' | 'stopped'
 
@@ -21,26 +21,29 @@ export const isArmed = (f: Pick<KeepwarmFacts, 'always' | 'deadline'> | null, no
 
 /** What the band says beside KEEPWARM, in full and in the short form of a narrow band or the terminal. */
 export const kwValue = (f: KeepwarmFacts | null, now: number): { text: string; short: string; tone: Tone } => {
+  // Stopped first: a loop that stopped with always on is still stopped, and pings nothing until the next turn.
+  if (f && f.stopped) return { text: t('kw.stopped'), short: t('kw.stopped'), tone: 'stopped' }
   if (f && f.always) return { text: t('kw.always'), short: t('kw.always'), tone: 'on' }
   if (f && f.deadline > now) {
     const time = until(f.deadline, now)
     return { text: t('kw.until', { time }), short: time, tone: 'on' }
   }
-  if (f && f.stopped) return { text: t('kw.stopped'), short: t('kw.stopped'), tone: 'stopped' }
   return { text: t('kw.valueOff'), short: t('kw.valueOff'), tone: 'off' }
 }
 
 /** The card's keepwarm strip: state, why it stopped, pings sent and their estimated cost, cold writes paid. */
 export const kwCard = (f: KeepwarmFacts | null, now: number): KeepwarmCard => {
   const v = kwValue(f, now)
-  // The next ping, when the engine already knows it: 50 minutes (or its period) after the last request or ping, inside the window.
+  // The next ping, when the engine already knows it: one period after the last request or ping, inside the window.
   const since = Math.max(f?.lastRequestAt ?? 0, f?.last?.at ?? 0)
   const next = f && since > 0 ? since + f.every : 0
-  const hasNext = v.tone === 'on' && next > now && (f?.always || next < (f?.deadline ?? 0))
+  // No ping is coming while it waits for a turn, for the summary's first turn or for a busy API: the card says which instead.
+  const why = f?.compacted ? t('card.kwCompacted') : f?.waitForTurn ? t('card.kwWaiting') : f?.retries ? t('card.kwRetry', { n: f.retries, max: MAX_RETRIES }) : ''
+  const hasNext = v.tone === 'on' && !why && next > now && (f?.always || next < (f?.deadline ?? 0))
   return {
     tone: v.tone,
     state: v.tone === 'on' ? (f?.always ? t('card.kwAlways') : t('card.kwOn', { text: v.text })) : v.tone === 'stopped' ? t('card.kwStopped', { why: f?.stopped ?? v.text }) : v.text,
-    note: hasNext ? t('card.kwNext', { time: until(next, now) }) : '',
+    note: v.tone === 'on' && why ? why : hasNext ? t('card.kwNext', { time: until(next, now) }) : '',
     pings: `${f?.pings ?? 0} · ~${fmtUsd(f?.pingUsd ?? 0)}`,
     cold: `${f?.coldWrites ?? 0} · ${fmtUsd(f?.coldUsd ?? 0)}`,
   }
