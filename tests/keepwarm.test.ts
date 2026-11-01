@@ -3,7 +3,7 @@ import type { MockClock, Plugin, TestBody } from 'claude-code/testing'
 import type { CommandRunInput, EngineInterface, ModelForkResult, On, PromptSubmitInput, SessionStartInput, TurnCompleteInput, TurnUsage } from 'claude-code'
 
 import { keepwarmCommand } from '../src/keepwarm/commands'
-import { fmtDuration, freshState, pingAfterMs, parseDuration, resetForClear, seedFromResume, sessionStart, statusText } from '../src/keepwarm/engine'
+import { fmtDuration, freshState, pingAfterMs, parseDuration, readKeepwarm, resetForClear, seedFromResume, sessionStart, statusText, turnComplete } from '../src/keepwarm/engine'
 import type { State } from '../src/keepwarm/engine'
 import { testEn as test } from './lang'
 
@@ -2322,5 +2322,40 @@ describe('the ping period is half the cache lifetime', () => {
     expect(w.forks.length).toBe(0)
     await clock.advance(1000)
     expect(w.forks.length).toBe(1)
+  })
+})
+
+describe('a reload keeps what the session has paid', () => {
+  const next = async () => ({ text: 'ok' })
+  const paid = turn({ usage: usage({ cache_read_input_tokens: 0, cache_creation_input_tokens: 200500 }) })
+
+  test('the ping tally, the last ping and the cold writes come back from the facts of the same session', async () => {
+    let sid = 'S1'
+    const w = survivors({ sid: () => sid })
+    const first = await startOver(w.$)
+    await turnComplete(first, w.$, turn(), next)
+    await turnComplete(first, w.$, paid, next)
+    expect(first.misses.length).toBe(1)
+    await keepwarmCommand(first, w.$, run('keepwarm', '6h'))
+    w.answer(200000, 0)
+    await w.advance(first.every)
+    expect(first.pings).toBe(1)
+
+    const fresh = await startOver(w.$)
+    expect(fresh.pings).toBe(1)
+    expect(fresh.pingUsd).toBe(first.pingUsd)
+    expect(fresh.last?.read).toBe(200000)
+    expect(fresh.misses.length).toBe(1)
+    const facts = await readKeepwarm(w.$)
+    expect(facts?.pings).toBe(1)
+    expect(facts?.coldWrites).toBe(1)
+    expect(Math.round((facts?.coldUsd ?? 0) * 100)).toBe(401)
+    expect(facts?.last?.read).toBe(200000)
+
+    sid = 'S2'
+    const other = await startOver(w.$)
+    expect(other.pings).toBe(0)
+    expect(other.last).toBe(null)
+    expect(other.misses.length).toBe(0)
   })
 })

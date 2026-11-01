@@ -271,10 +271,20 @@ export async function readKeepwarm($: EngineInterface): Promise<KeepwarmFacts | 
 /** What the band reads: the window, the ping tally and the cold-write tally. */
 function factsOf(s: State): KeepwarmFacts {
   return {
-    deadline: s.deadline, every: s.every, ttlMs: s.ttlMs, always: s.always, lastRequestAt: s.lastRequestAt, compacted: s.compacted,
+    sid: s.sid, deadline: s.deadline, every: s.every, ttlMs: s.ttlMs, always: s.always, lastRequestAt: s.lastRequestAt, compacted: s.compacted,
     waitForTurn: s.waitForTurn, retries: s.retries, stopped: s.stopped, last: s.last, pings: s.pings, pingUsd: s.pingUsd,
     coldWrites: s.misses.length, coldUsd: s.misses.reduce((a, m) => a + (m.usd ?? 0), 0),
   }
+}
+
+/** A reload starts the state over but not the atom: this session's tallies come back from the facts it last published. */
+function restoreTallies(s: State, f: KeepwarmFacts | null) {
+  if (!f || !s.sid || f.sid !== s.sid || s.pings || s.last || s.misses.length) return
+  s.pings = f.pings
+  s.pingUsd = f.pingUsd
+  s.last = f.last
+  // ponytail: only the count and the sum of the cold writes are kept, so the list is rebuilt as that many entries carrying the sum.
+  s.misses = Array.from({ length: f.coldWrites }, (_, i) => ({ at: 0, tokens: 0, usd: i === 0 ? f.coldUsd : 0 }))
 }
 
 /** The clock read the status line took at a stop and at a clear. The tests for /clear and /keepwarm off racing each other order their pauses around it, so it stays. */
@@ -560,6 +570,7 @@ export async function sessionStart(s: State, $: EngineInterface, e: Ev<'session.
     s.lastRequestAt = kept
     s.resumedAt = 0
   }
+  restoreTallies(s, await readKeepwarm($))
   await prune($, s, now)
   const saved = await $.store.get(deadlineKey(s))
   const savedEvery = await $.store.get(everyKey(s))

@@ -23,9 +23,11 @@ export type Ping = { at: number; read: number; write: number; usd: number | null
  * conversation.
  */
 export type KeepwarmFacts = {
+  /** The session these facts belong to; a reload takes the tallies back only for the same one. */
+  sid?: string
   /** When the open window ends; 0 when none is open. */
   deadline: number
-  /** The ping period in milliseconds (50 minutes for a 1-hour cache, shortly before expiry for a 5-minute one, unless /keepwarm ... every was used). */
+  /** The ping period in milliseconds (half the cache's life, unless /keepwarm ... every was used). */
   every: number
   always: boolean
   /** How long the cache lives in milliseconds; absent means the 1 hour default. */
