@@ -2397,3 +2397,44 @@ describe('one price table', () => {
     }
   }
 })
+
+describe('a paid ping is counted and stamps the band clock', () => {
+  const settle = () => new Promise<void>(r => { (globalThis as unknown as { setTimeout(fn: () => void, ms: number): unknown }).setTimeout(r, 20) })
+  const watch = (on: On) => {
+    const facts: Array<{ pings: number; pingUsd: number }> = []
+    const cache: Array<{ lastAt: number }> = []
+    on('state.set', { plugin: 'glitchband', key: 'keepwarm' }, ($, e, next) => { facts.push(e.value as { pings: number; pingUsd: number }); return next(e) })
+    on('state.set', { plugin: 'glitchband', key: 'cache' }, ($, e, next) => { cache.push(e.value as { lastAt: number }); return next(e) })
+    return { facts, cache }
+  }
+
+  test('a reply dropped because a request moved the cache clock still counts: it was paid', async ($, on) => {
+    const clock = mockClock(on, { now: START })
+    const seen = watch(on)
+    let release = () => {}
+    const w = world(on, [warm], { gate: async () => { if (w.forks.length === 1) await new Promise<void>(r => { release = r }) } })
+    await $.session.start(session)
+    await $.turn.complete(turn())
+    await $.command.run(run('keepwarm', '3h'))
+    await clock.advance(30 * MIN)
+    expect(w.forks.length).toBe(1)
+    for await (const c of $.turn.step({ turnId: 'next', index: 0, model: 'claude-fable-5-1', messageCount: 3 })) void c
+    release()
+    await settle()
+    expect(seen.facts.at(-1)?.pings).toBe(1)
+    expect(seen.facts.at(-1)?.pingUsd).toBeGreaterThan(0)
+  })
+
+  test('a ping that wrote the prefix again also restarts the band clock', async ($, on) => {
+    const clock = mockClock(on, { now: START })
+    const seen = watch(on)
+    const w = world(on, [{ read: 0, write: 200000 }])
+    await $.session.start(session)
+    await $.turn.complete(turn())
+    await $.command.run(run('keepwarm', '3h'))
+    await clock.advance(30 * MIN)
+    expect(w.forks.length).toBe(1)
+    expect(w.status.at(-1)).toMatch(/keepwarm stopped: the ping read 0 and wrote 200k/)
+    expect(seen.cache.at(-1)?.lastAt).toBe(START + 30 * MIN)
+  })
+})

@@ -421,6 +421,8 @@ async function ping($: EngineInterface, s: State) {
   const sent = await $.model.fork({ prompt: PING_PROMPT }).then(reply => ({ reply }), (err: unknown) => ({ err }))
   const at = await $.clock.now()
   s.inFlight = false
+  // An answered fork was billed, whether or not it still applies: it counts before the checks below can drop it.
+  const paid = 'reply' in sent && sent.reply && sent.reply.isAnswered !== false ? settle(s, sent.reply.usage) : null
   // Checked after the last await. A stop, /clear, resume or compaction, or a main request that moved the
   // cache clock, replaced what this fork was sent for: its reply is dropped and the window armed afresh.
   if (gen !== s.gen || s.lastRequestAt !== sentAt) return s.pending ? undefined : arm($, s)
@@ -451,19 +453,24 @@ async function ping($: EngineInterface, s: State) {
     }
     return stop($, s, reason + afterRetries(s.retries))
   }
-  const u = reply.usage
+  const { u, usd, warm } = paid!
+  s.last = { at: now, read: u.cache_read_input_tokens, write: u.cache_creation_input_tokens, usd, warm }
+  // Warm or not, the fork wrote the prefix it sent: the band's clock restarts with it, or it shows COLD at the hour.
+  await stampRequest($, now)
+  if (!warm) return stop($, s, t('stop.gone', { read: fmtTok(u.cache_read_input_tokens), write: fmtTok(u.cache_creation_input_tokens), usd: fmtUsd(usd) }))
+  s.lastRequestAt = now
+  await arm($, s)
+}
+
+/** Counts a fork's reply that was billed: its estimated cost, and whether it read the prefix rather than writing it again. */
+function settle(s: State, u: { input_tokens: number; output_tokens: number; cache_read_input_tokens: number; cache_creation_input_tokens: number }) {
   const price = priceOf(s.lastModel, u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens, s.ttlMs)
   // A warm ping reads the prefix and writes only its own message; a write of a tenth of the read or more means the prefix broke.
   const warm = u.cache_read_input_tokens > 0 && u.cache_creation_input_tokens < 0.1 * u.cache_read_input_tokens
   const usd = price ? pingUsd(u, price, s.ttlMs) : null
-  s.last = { at: now, read: u.cache_read_input_tokens, write: u.cache_creation_input_tokens, usd, warm }
   s.pings++
   s.pingUsd += usd ?? 0
-  if (!warm) return stop($, s, t('stop.gone', { read: fmtTok(u.cache_read_input_tokens), write: fmtTok(u.cache_creation_input_tokens), usd: fmtUsd(usd) }))
-  s.lastRequestAt = now
-  // The ping read the cache and restarted its lifetime: the band's clock moves with it, or it shows COLD at the hour.
-  await stampRequest($, now)
-  await arm($, s)
+  return { u, usd, warm }
 }
 
 function afterRetries(n: number): string {
