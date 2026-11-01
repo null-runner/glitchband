@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0
+
+- Keepwarm pings at half the cache's lifetime: every 30 minutes for the 1-hour cache, every 2m30s for the 5-minute one (was 50 minutes and 75 s before expiry).
+- A reload keeps the session's ping tally, last receipt and cold writes; it also keeps the cache lifetime, and so does /clear.
+- A stopped keepwarm reads stopped even with always on, and the card says why no ping is coming (waiting for your next turn, after compaction, API busy and retrying) instead of promising one.
+- One price table for the band, the guard and /glitchband.
+- A ping whose reply was dropped is still counted, and a ping that rewrote the cache moves the band clock too.
+- A bare /keepwarm always arms the window, whatever state a reload left behind.
+
 ## 0.2.4
 
 - A warm keepwarm ping now restarts the band's cache clock too: the cache stayed warm, but the band showed COLD an hour after the last reply.
