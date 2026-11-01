@@ -64,7 +64,7 @@ A value outside its range, or of the wrong type, falls back to its default.
 
 ## What the pings cost
 
-Each ping is one request to the model on the session transcript, sent inside the armed window: 50 minutes after inactivity for a 1-hour cache, 75 seconds before expiry for a 5-minute one. It costs a cache read plus an answer of a few words. The cost is estimated with list prices kept in the code (`PRICES` in `src/keepwarm/engine.ts`) and summed on the card. Keepwarm stops by itself when a ping reads nothing or writes more than 10% of what it reads. On a subscription the dollars are a yardstick, not a bill. The mod makes no network calls of its own.
+Each ping is one request to the model on the session transcript, sent inside the armed window: half the cache's life after inactivity: 30 minutes for a 1-hour cache, 2 minutes 30 seconds for a 5-minute one. It costs a cache read plus an answer of a few words. The cost is estimated with list prices kept in the code (`PRICES` in `src/keepwarm/engine.ts`) and summed on the card. Keepwarm stops by itself when a ping reads nothing or writes more than 10% of what it reads. On a subscription the dollars are a yardstick, not a bill. The mod makes no network calls of its own.
 
 ## Credits
 
@@ -86,6 +86,6 @@ Comandi: `/keepwarm` (finestra di default, 6h), `/keepwarm 90m`, `/keepwarm alwa
 
 Opzioni: `language` (`en` di default, `auto`, `it`; `auto` segue la lingua impostata in Claude Code, poi quella del sistema), `compactBelow` (colonne sotto cui la riga larga diventa compatta, default 110), `cardScale` (scala del testo della scheda, default 1), `keepwarmWindow` (durata armata dal pulsante e da `/keepwarm` senza argomenti, default `6h`), `coldGuard` (default attivo: se spento il messaggio a freddo passa senza essere fermato). Un valore fuori range o del tipo sbagliato torna al default.
 
-Costo dei ping: ogni ping è una richiesta al modello sulla trascrizione, dopo 50 minuti di inattività dentro la finestra armata. Costa una lettura di cache più una risposta di poche parole, stimata con i prezzi di listino nel codice e sommata nella scheda. Si ferma da solo se la lettura è zero o se la scrittura supera il 10% della lettura. Sugli abbonamenti i dollari sono un metro, non il conto.
+Costo dei ping: ogni ping è una richiesta al modello sulla trascrizione, a metà della vita della cache (30 minuti per quella da 1 ora, 2 minuti e 30 secondi per quella da 5) dentro la finestra armata. Costa una lettura di cache più una risposta di poche parole, stimata con i prezzi di listino nel codice e sommata nella scheda. Si ferma da solo se la lettura è zero o se la scrittura supera il 10% della lettura. Sugli abbonamenti i dollari sono un metro, non il conto.
 
 Crediti: banda e scheda della cache da ribbon di Jay E (RoboNuggets), keepwarm e guardia da cache-tax di Karan Bansal, entrambi MIT (vedi `LICENSE`).

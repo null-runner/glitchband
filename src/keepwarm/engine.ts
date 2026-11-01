@@ -8,13 +8,8 @@ import { fmtInt, t } from '../i18n'
 // Ported from cache-tax 2.3.1 (Karan Bansal, MIT). The behaviour is the original's; what changed is where it
 // shows: the facts below are published for the band instead of a status line.
 
-export const PING_AFTER_MS = 50 * 60 * 1000
-// A 5-minute cache is pinged 75 s before it expires: late enough to add almost nothing to the idle time it
-// holds, early enough that a slow fork still lands inside the cache's life.
-const PING_LEAD_MS = 75 * 1000
-
-/** How long after a request the default ping goes out, for a cache that lives this long. */
-export const pingAfterMs = (ttlMs: number): number => (ttlMs < TTL_MS ? ttlMs - PING_LEAD_MS : PING_AFTER_MS)
+/** How long after a request the default ping goes out: half the cache's life, so a slow fork still lands inside it. */
+export const pingAfterMs = (ttlMs: number): number => ttlMs / 2
 export const MIN_PING_MS = 60 * 1000
 const MAX_RETRIES = 3
 const AUTO_WARM_MS = 3 * 60 * 60 * 1000
@@ -546,7 +541,7 @@ export async function startWindow($: EngineInterface, s: State, windowMs: number
 export function freshState(options: { window?: number; guardOn?: boolean } = {}): State {
   return {
     window: options.window ?? DEFAULT_WINDOW_MS, guardOn: options.guardOn ?? true,
-    sid: '', deadline: 0, every: PING_AFTER_MS, ttlMs: TTL_MS, ttlSeen: false, always: false, lastRequestAt: 0, lastModel: null, ctx: 0, compacted: false,
+    sid: '', deadline: 0, every: pingAfterMs(TTL_MS), ttlMs: TTL_MS, ttlSeen: false, always: false, lastRequestAt: 0, lastModel: null, ctx: 0, compacted: false,
     resumedAt: 0, transcript: 0, guard: 'refuse', ackedAt: 0, coldWritePending: false, misses: [], pending: null, last: null, stopped: null,
     waitForTurn: false, retries: 0, retryReason: '', gen: 0, tick: 0, offs: 0, turnOffs: null, inFlight: false, stepWrites: null, steps: 0, endingSid: '', pings: 0, pingUsd: 0,
   }

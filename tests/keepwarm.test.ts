@@ -3,7 +3,7 @@ import type { MockClock, Plugin, TestBody } from 'claude-code/testing'
 import type { CommandRunInput, EngineInterface, ModelForkResult, On, PromptSubmitInput, SessionStartInput, TurnCompleteInput, TurnUsage } from 'claude-code'
 
 import { keepwarmCommand } from '../src/keepwarm/commands'
-import { fmtDuration, freshState, parseDuration, resetForClear, seedFromResume, sessionStart, statusText } from '../src/keepwarm/engine'
+import { fmtDuration, freshState, pingAfterMs, parseDuration, resetForClear, seedFromResume, sessionStart, statusText } from '../src/keepwarm/engine'
 import type { State } from '../src/keepwarm/engine'
 import { testEn as test } from './lang'
 
@@ -108,7 +108,7 @@ describe('window and pings', () => {
       await $.session.start({ ...session, surface })
       await $.turn.complete(turn())
       await $.command.run(run('keepwarm', '90m'))
-      expect(w.status.at(-1)).toBe('keepwarm 1h30m left · ping in 50m')
+      expect(w.status.at(-1)).toBe('keepwarm 1h30m left · ping in 30m')
       expect(w.forks.length).toBe(0)
     })
   }
@@ -124,7 +124,7 @@ describe('window and pings', () => {
     await clock.advance(HOUR)
     expect(w.forks.length).toBe(0)
     await $.turn.complete(turn())
-    expect(w.status.at(-1)).toMatch(/ping in 50m/)
+    expect(w.status.at(-1)).toMatch(/ping in 30m/)
     await $.classic.SessionStart({ source: 'clear' })
     expect(w.status.at(-1)).toBe(undefined)
     await clock.advance(HOUR)
@@ -160,9 +160,9 @@ describe('window and pings', () => {
     await $.session.start({ ...session, surface: 'terminal', isInteractive: true })
     await $.turn.complete(turn())
     await $.command.run(run('keepwarm', '3h'))
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.status.at(-1)).toMatch(/last ping read 200k/)
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.status.at(-1)).toMatch(/stopped.*cache was already gone/)
     await clock.advance(HOUR)
     expect(w.forks.length).toBe(2)
@@ -251,12 +251,12 @@ describe('guard', () => {
     await $.prompt.submit(prompt('hi'))
     await $.turn.complete(turn({ usage: usage({ cache_read_input_tokens: 0, cache_creation_input_tokens: 200502 }) }))
     expect(w.logs.at(-1)).toMatch(/cold write of 201k tokens paid \(\$4\.01\)\. Keeping the cache warm for 3h00m/)
-    expect(w.status.at(-1)).toMatch(/^keepwarm 3h00m left · ping in 50m/)
-    await clock.advance(50 * MIN)
+    expect(w.status.at(-1)).toMatch(/^keepwarm 3h00m left · ping in 30m/)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(1)
     const card = await $.command.run(run('glitchband', 'status'))
     expect(card.text).toMatch(/session     1 cold write paid, \$4\.01/)
-    expect(card.text).toMatch(/keepwarm    on, 2h10m left/)
+    expect(card.text).toMatch(/keepwarm    on, 2h30m left/)
   })
 
   test('context comes from the live window, not the turn\'s summed usage', async ($, on) => {
@@ -334,19 +334,19 @@ describe('guard', () => {
 })
 
 describe('keepwarm', () => {
-  test('pings 50 minutes after the last request, then again, and reports the read', async ($, on) => {
+  test('pings 30 minutes after the last request, then again, and reports the read', async ($, on) => {
     const clock = mockClock(on, { now: START })
     const w = world(on, [warm, warm])
     await $.session.start(session)
     const r = await $.command.run(run('keepwarm', '6h'))
     expect(r.text).toMatch(/keepwarm on for 6h00m/)
     await $.turn.complete(turn())
-    await clock.advance(49 * MIN)
+    await clock.advance(29 * MIN)
     expect(w.forks.length).toBe(0)
     await clock.advance(1 * MIN)
     expect(w.forks.length).toBe(1)
-    expect(w.status.at(-1)).toMatch(/keepwarm 5h10m left · ping in 50m · last ping read 200k \$0\.05/)
-    await clock.advance(50 * MIN)
+    expect(w.status.at(-1)).toMatch(/keepwarm 5h30m left · ping in 30m · last ping read 200k \$0\.05/)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(2)
   })
 
@@ -356,9 +356,9 @@ describe('keepwarm', () => {
     await $.session.start(session)
     await $.command.run(run('keepwarm', '6h'))
     await $.turn.complete(turn())
-    await clock.advance(40 * MIN)
+    await clock.advance(20 * MIN)
     await $.turn.complete(turn())
-    await clock.advance(40 * MIN)
+    await clock.advance(20 * MIN)
     expect(w.forks.length).toBe(0)
     await clock.advance(10 * MIN)
     expect(w.forks.length).toBe(1)
@@ -370,7 +370,7 @@ describe('keepwarm', () => {
     await $.session.start(session)
     await $.command.run(run('keepwarm', '6h'))
     await $.turn.complete(turn())
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(1)
     expect(w.status.at(-1)).toMatch(/keepwarm stopped: the ping read 0 and wrote 180k tokens \(\$3\.60\)/)
     await clock.advance(120 * MIN)
@@ -385,7 +385,7 @@ describe('keepwarm', () => {
     await $.session.start(session)
     await $.command.run(run('keepwarm', '1h'))
     await $.turn.complete(turn())
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(1)
     expect(w.status.at(-1)).toMatch(/either the snapshot was cold or the API call failed/)
   })
@@ -442,10 +442,10 @@ describe('keepwarm', () => {
     const w = world(on, [warm])
     await $.session.start(session)
     const r = await $.command.run(run('keepwarm', ''))
-    expect(r.text).toMatch(/^keepwarm on for 6h00m, a ping 50m after each idle stretch/)
+    expect(r.text).toMatch(/^keepwarm on for 6h00m, a ping 30m after each idle stretch/)
     await $.turn.complete(turn())
-    expect(w.status.at(-1)).toBe('keepwarm 6h00m left · ping in 50m')
-    await clock.advance(50 * MIN)
+    expect(w.status.at(-1)).toBe('keepwarm 6h00m left · ping in 30m')
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(1)
   })
 
@@ -474,10 +474,10 @@ describe('keepwarm', () => {
     await $.turn.complete(turn())
     await clock.advance(1 * MIN)
     expect(w.forks.length).toBe(0)
-    await clock.advance(49 * MIN)
+    await clock.advance(29 * MIN)
     expect(w.forks.length).toBe(1)
     const card = await $.command.run(run('glitchband', ''))
-    expect(card.text).toMatch(/keepwarm    on, 5h10m left · ping in 50m · last ping read 200k \$0\.05 \(always\)/)
+    expect(card.text).toMatch(/keepwarm    on, 5h30m left · ping in 30m · last ping read 200k \$0\.05 \(always\)/)
     const off = await $.command.run(run('keepwarm', 'off'))
     expect(off.text).toBe('keepwarm is off, and always is off for every session from its next turn')
     expect(store.has('glitchband.always')).toBe(false)
@@ -506,9 +506,9 @@ describe('keepwarm', () => {
     await clock.advance(5 * HOUR + 30 * MIN)
     await $.turn.complete(turn())
     expect(store.get('glitchband.deadline:S1')).toBe(START + 11 * HOUR + 30 * MIN)
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(1)
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(2)
   })
 
@@ -518,11 +518,11 @@ describe('keepwarm', () => {
     await $.session.start(session)
     await $.command.run(run('keepwarm', '6h'))
     await $.turn.complete(turn({ usage: usage({ model: 'claude-sonnet-5' }) }))
-    await clock.advance(50 * MIN)
-    expect(w.status.at(-1)).toBe('keepwarm 5h10m left · ping in 50m · last ping read 200k $0.05')
+    await clock.advance(30 * MIN)
+    expect(w.status.at(-1)).toBe('keepwarm 5h30m left · ping in 30m · last ping read 200k $0.05')
     const card = await $.command.run(run('glitchband', ''))
     expect(card.text).toMatch(/cold cost   \$0\.80 to re-write it \(warm turn \$0\.04\)/)
-    expect(card.text).toMatch(/break-even  up to 20 pings at the read rate cost one cold write, about 16h40m of idle at one ping per 50m/)
+    expect(card.text).toMatch(/break-even  up to 20 pings at the read rate cost one cold write, about 10h00m of idle at one ping per 30m/)
   })
 
   test('a partial write, a zero read, or a full write stops the loop; a ping\'s own few tokens do not', async ($, on) => {
@@ -547,7 +547,7 @@ describe('keepwarm', () => {
     await $.session.start(session)
     await $.command.run(run('keepwarm', '6h'))
     await $.turn.complete(turn())
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.status.at(-1)).toMatch(/^keepwarm stopped: the ping read 0 and wrote 0 tokens/)
     await clock.advance(60 * MIN)
     expect(w.forks.length).toBe(1)
@@ -559,8 +559,8 @@ describe('keepwarm', () => {
     await $.session.start(session)
     await $.command.run(run('keepwarm', '6h'))
     await $.turn.complete(turn({ usage: usage({ model: 'claude-sonnet-5' }) }))
-    await clock.advance(50 * MIN)
-    expect(w.status.at(-1)).toBe('keepwarm 5h10m left · ping in 50m · last ping read 200k $0.15')
+    await clock.advance(30 * MIN)
+    expect(w.status.at(-1)).toBe('keepwarm 5h30m left · ping in 30m · last ping read 200k $0.15')
   })
 
   test('the card states the break-even for Fable 5.1', async ($, on) => {
@@ -569,7 +569,7 @@ describe('keepwarm', () => {
     await $.session.start(session)
     await $.turn.complete(turn())
     const card = await $.command.run(run('glitchband', ''))
-    expect(card.text).toMatch(/break-even  up to 80 pings at the read rate cost one cold write, about 2d 18h of idle at one ping per 50m/)
+    expect(card.text).toMatch(/break-even  up to 80 pings at the read rate cost one cold write, about 40h00m of idle at one ping per 30m/)
   })
 
   test('/keepwarm on a cold session schedules no fork before a turn, and does after one', async ($, on) => {
@@ -579,17 +579,17 @@ describe('keepwarm', () => {
     await $.turn.complete(turn())
     await jump(clock, 2 * 24 * HOUR)
     const r = await $.command.run(run('keepwarm', ''))
-    expect(r.text).toBe('keepwarm on for 6h00m. The cache is cold now, so the first ping comes 50m after the next turn')
-    expect(w.status.at(-1)).toBe('keepwarm 6h00m left · cold now, first ping 50m after the next turn')
+    expect(r.text).toBe('keepwarm on for 6h00m. The cache is cold now, so the first ping comes 30m after the next turn')
+    expect(w.status.at(-1)).toBe('keepwarm 6h00m left · cold now, first ping 30m after the next turn')
     await clock.advance(1 * MIN)
     expect(w.forks.length).toBe(0)
     await clock.advance(60 * MIN)
     expect(w.forks.length).toBe(0)
     const card = await $.command.run(run('glitchband', ''))
-    expect(card.text).toMatch(/keepwarm    on, 4h59m left · cold now, first ping 50m after the next turn/)
+    expect(card.text).toMatch(/keepwarm    on, 4h59m left · cold now, first ping 30m after the next turn/)
     await $.turn.complete(turn())
-    expect(w.status.at(-1)).toBe('keepwarm 4h59m left · ping in 50m')
-    await clock.advance(49 * MIN)
+    expect(w.status.at(-1)).toBe('keepwarm 4h59m left · ping in 30m')
+    await clock.advance(29 * MIN)
     expect(w.forks.length).toBe(0)
     await clock.advance(1 * MIN)
     expect(w.forks.length).toBe(1)
@@ -606,15 +606,15 @@ describe('keepwarm', () => {
     // The test kit cannot raise classic.SessionStart, so the cold state comes from the turn above and a second start arms the switch over it.
     store.set('glitchband.always', true)
     await $.session.start(session)
-    expect(w.status.at(-1)).toBe('keepwarm 6h00m left · cold now, first ping 50m after the next turn')
+    expect(w.status.at(-1)).toBe('keepwarm 6h00m left · cold now, first ping 30m after the next turn')
     await clock.advance(1 * MIN)
     expect(w.forks.length).toBe(0)
     const r = await $.command.run(run('keepwarm', 'always'))
-    expect(r.text).toBe('keepwarm always on: every session stays warm until 6h00m after its last turn; /keepwarm off turns it off for good. The cache is cold now, so the first ping comes 50m after the next turn')
+    expect(r.text).toBe('keepwarm always on: every session stays warm until 6h00m after its last turn; /keepwarm off turns it off for good. The cache is cold now, so the first ping comes 30m after the next turn')
     await clock.advance(60 * MIN)
     expect(w.forks.length).toBe(0)
     await $.turn.complete(turn())
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(1)
   })
 
@@ -633,7 +633,7 @@ describe('keepwarm', () => {
     expect(w.status.at(-1)).toBe(undefined)
     expect((await $.command.run(run('keepwarm', 'status'))).text).toBe('keepwarm is off')
     await $.turn.complete(turn({ usage: usage({ cache_read_input_tokens: 0, cache_creation_input_tokens: 200000 }) }))
-    await clock.advance(49 * MIN)
+    await clock.advance(29 * MIN)
     expect(w.forks.length).toBe(0)
     await clock.advance(MIN)
     expect(w.forks.length).toBe(1)
@@ -655,7 +655,7 @@ describe('keepwarm', () => {
     await $.turn.complete(turn({ usage: usage({ cache_read_input_tokens: 0, cache_creation_input_tokens: 200000 }) }))
     expect(store.has('glitchband.every:S1')).toBe(false)
     expect(store.get('glitchband.deadline:S1')).toBe(now + 3 * HOUR)
-    expect(w.status.at(-1)).toBe('keepwarm 3h00m left · ping in 50m')
+    expect(w.status.at(-1)).toBe('keepwarm 3h00m left · ping in 30m')
     expect(w.forks.length).toBe(0)
   })
 
@@ -682,7 +682,7 @@ describe('store per session', () => {
     const r = await $.command.run(run('keepwarm', 'status'))
     expect(r.text).toBe('keepwarm is off')
     await $.turn.complete(turn())
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(0)
     expect(store.get('glitchband.deadline:other')).toBe(START + HOUR)
     expect(store.get('glitchband.every:other')).toBe(MIN)
@@ -824,7 +824,7 @@ describe('keepwarm input', () => {
     const w = world(on, [warm], { store: new Map<string, unknown>([['glitchband.deadline:S1', START + 3 * HOUR], ['glitchband.every:S1', 90 * MIN]]) })
     await $.session.start(session)
     await $.turn.complete(turn())
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(1)
   })
 })
@@ -843,7 +843,7 @@ describe('always after /clear', () => {
     expect(store.get('glitchband.deadline:S2')).toBe(START + 6 * HOUR)
     expect(w.status.at(-1)).toBe('keepwarm 6h00m left · waiting for the first turn')
     await $.turn.complete(turn())
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(1)
   })
 
@@ -855,7 +855,7 @@ describe('always after /clear', () => {
     await $.turn.complete(turn())
     await $.classic.SessionStart({ source: 'clear' })
     await $.turn.complete(turn())
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(0)
   })
 })
@@ -901,7 +901,7 @@ describe('ping failures', () => {
     const store = new Map<string, unknown>([['glitchband.deadline:S1', 13 * HOUR]])
     const w = world(on, [{ isAnswered: false, reason: 'nothing-to-fork' }, warm], { store })
     await $.session.start(session)
-    await $.classic.SessionStart({ session_id: 'S1', source: 'resume', seconds_since_last_response: 40 * 60, context_tokens: 200000 })
+    await $.classic.SessionStart({ session_id: 'S1', source: 'resume', seconds_since_last_response: 20 * 60, context_tokens: 200000 })
     await clock.advance(10 * MIN)
     expect(w.forks.length).toBe(1)
     expect(w.status.at(-1)).toBe('keepwarm 2h50m left · nothing to fork yet, first ping after the next turn')
@@ -909,9 +909,9 @@ describe('ping failures', () => {
     await clock.advance(HOUR)
     expect(w.forks.length).toBe(1)
     await $.turn.complete(turn())
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(2)
-    expect(w.status.at(-1)).toMatch(/ping in 50m · last ping read 200k/)
+    expect(w.status.at(-1)).toMatch(/ping in 30m · last ping read 200k/)
   })
 
   for (const status of [429, 529, 500, null]) {
@@ -921,13 +921,13 @@ describe('ping failures', () => {
       await $.session.start(session)
       await $.turn.complete(turn())
       await $.command.run(run('keepwarm', '3h'))
-      await clock.advance(50 * MIN)
+      await clock.advance(30 * MIN)
       expect(w.forks.length).toBe(1)
-      expect(w.status.at(-1)).toBe('keepwarm 2h10m left · API busy, ping retry 1 of 3')
+      expect(w.status.at(-1)).toBe('keepwarm 2h30m left · API busy, ping retry 1 of 3')
       await clock.advance(MIN)
       expect(w.forks.length).toBe(2)
-      expect(w.status.at(-1)).toMatch(/ping in 50m · last ping read 200k/)
-      await clock.advance(50 * MIN)
+      expect(w.status.at(-1)).toMatch(/ping in 30m · last ping read 200k/)
+      await clock.advance(30 * MIN)
       expect(w.forks.length).toBe(3)
     })
   }
@@ -973,14 +973,14 @@ describe('stale and late ping results', () => {
     await $.session.start(session)
     await $.turn.complete(turn())
     await $.command.run(run('keepwarm', '3h'))
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(1)
     await $.session.compact({ trigger: 'manual', messages: [{ role: 'user', text: 'summary', toolUses: [] }] })
     g.release()
     await settle()
     await clock.advance(5 * MIN)
     expect(w.forks.length).toBe(1)
-    expect(w.status.at(-1)).toBe('keepwarm 2h10m left · waiting for the first turn after compaction')
+    expect(w.status.at(-1)).toBe('keepwarm 2h30m left · waiting for the first turn after compaction')
   })
 
   test('a 429 that lands after /clear with always on leaves the new window alone', async ($, on) => {
@@ -991,13 +991,13 @@ describe('stale and late ping results', () => {
     const w = world(on, [busy], { store, sid: () => sid, gate: g.gate })
     await $.session.start(session)
     await $.turn.complete(turn())
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(1)
     sid = 'S2'
     await $.classic.SessionStart({ source: 'clear' })
     g.release()
     await settle()
-    expect(store.get('glitchband.deadline:S2')).toBe(START + 50 * MIN + 6 * HOUR)
+    expect(store.get('glitchband.deadline:S2')).toBe(START + 30 * MIN + 6 * HOUR)
     expect(w.status.at(-1)).toBe('keepwarm 6h00m left · waiting for the first turn')
   })
 
@@ -1008,13 +1008,13 @@ describe('stale and late ping results', () => {
     await $.session.start(session)
     await $.turn.complete(turn())
     await $.command.run(run('keepwarm', '3h'))
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     await $.turn.complete(turn())
     g.release()
     await settle()
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(2)
-    expect(w.status.at(-1)).toMatch(/ping in 50m · last ping read 200k/)
+    expect(w.status.at(-1)).toMatch(/ping in 30m · last ping read 200k/)
   })
 
   test('a retry whose timer fires inside the last minute is not sent', async ($, on) => {
@@ -1027,13 +1027,13 @@ describe('stale and late ping results', () => {
     await $.session.start(session)
     await $.turn.complete(turn())
     await $.command.run(run('keepwarm', '3h'))
-    now += 50 * MIN
+    now += 30 * MIN
     timers.at(-1)?.()
     await settle()
     expect(w.forks.length).toBe(1)
-    expect(w.status.at(-1)).toBe('keepwarm 2h10m left · API busy, ping retry 1 of 3')
+    expect(w.status.at(-1)).toBe('keepwarm 2h30m left · API busy, ping retry 1 of 3')
     // The host slept through the retry's one-minute slot and wakes 30 seconds before the cache goes cold.
-    now += 9.5 * 60 * 1000
+    now += 29.5 * 60 * 1000
     timers.at(-1)?.()
     await settle()
     expect(w.forks.length).toBe(1)
@@ -1103,13 +1103,13 @@ describe('per-request pricing and window extension', () => {
     await $.session.start(session)
     await $.turn.complete(turn())
     await $.command.run(run('keepwarm', '3h'))
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(1)
     await $.command.run(run('keepwarm', '6h'))
     release()
     await settle()
-    expect(w.status.at(-1)).toMatch(/ping in 50m · last ping read 200k/)
-    await clock.advance(50 * MIN)
+    expect(w.status.at(-1)).toMatch(/ping in 30m · last ping read 200k/)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(2)
   })
 })
@@ -1130,7 +1130,7 @@ describe('pings in flight', () => {
     await $.session.start(session)
     await $.turn.complete(turn())
     await $.command.run(run('keepwarm', '3h'))
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     await $.command.run(run('keepwarm', '6h'))
     await clock.advance(5 * 1000)
     expect(w.forks.length).toBe(1)
@@ -1147,16 +1147,16 @@ describe('pings in flight', () => {
     await $.session.start(session)
     await $.turn.complete(turn())
     await $.command.run(run('keepwarm', '3h'))
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     await clock.advance(MIN)
     for await (const c of $.turn.step({ turnId: 'next', index: 0, model: 'claude-fable-5-1', messageCount: 3 })) void c
     h.release()
     await settle()
     expect(w.status.at(-1)).not.toMatch(/stopped/)
     await $.turn.complete(turn())
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(2)
-    expect(w.status.at(-1)).toMatch(/ping in 50m · last ping read 200k/)
+    expect(w.status.at(-1)).toMatch(/ping in 30m · last ping read 200k/)
   })
 
   test('a turn aborted before any request keeps the reply of a ping that was out', async ($, on) => {
@@ -1166,14 +1166,14 @@ describe('pings in flight', () => {
     await $.session.start(session)
     await $.turn.complete(turn())
     await $.command.run(run('keepwarm', '3h'))
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     await clock.advance(MIN)
     await $.turn.complete(turn({ isAborted: true, usage: undefined }))
     h.release()
     await settle()
     expect(w.status.at(-1)).toMatch(/last ping read 200k/)
     // The next ping counts from the ping's own read, not from the aborted turn.
-    await clock.advance(49 * MIN)
+    await clock.advance(29 * MIN)
     expect(w.forks.length).toBe(2)
   })
 })
@@ -1200,7 +1200,7 @@ describe('ping timing races', () => {
     await $.session.start(session)
     await $.turn.complete(turn())
     await $.command.run(run('keepwarm', '3h'))
-    now += 50 * MIN
+    now += 30 * MIN
     // Ping A's clock read is held; the extension's own reads go through.
     hold = new Promise<void>(r => { releaseClock = r })
     timers.at(-1)?.()
@@ -1226,14 +1226,14 @@ describe('ping timing races', () => {
     await $.session.start(session)
     await $.turn.complete(turn())
     await $.command.run(run('keepwarm', '3h'))
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     await $.command.run(run('keepwarm', '6h'))
     // A long tool call: the turn's first request lands, and the turn does not complete.
     for await (const c of $.turn.step({ turnId: 'long', index: 0, model: 'claude-fable-5-1', messageCount: 3 })) void c
     release()
     await settle()
     await clock.advance(2 * 1000)
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(2)
   })
 })
@@ -1248,7 +1248,7 @@ describe('retry after a window extension', () => {
     await $.session.start(session)
     await $.turn.complete(turn())
     await $.command.run(run('keepwarm', '3h'))
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     await $.command.run(run('keepwarm', '6h'))
     release()
     await settle()
@@ -1292,7 +1292,7 @@ describe('one timer at a time', () => {
     await $.session.start(session)
     await $.turn.complete(turn())
     await $.command.run(run('keepwarm', '3h'))
-    now += 50 * MIN
+    now += 30 * MIN
     timers.at(-1)?.()
     await settle()
     expect(w.forks.length).toBe(1)
@@ -1340,7 +1340,7 @@ describe('a paused ping yields to a newer schedule', () => {
     await $.session.start(session)
     await $.turn.complete(turn())
     await $.command.run(run('keepwarm', '3h'))
-    now += 50 * MIN
+    now += 30 * MIN
     // Ping A pauses on its clock read.
     holdNext = true
     timers.at(-1)?.()
@@ -1384,7 +1384,7 @@ describe('/clear overlapping /keepwarm', () => {
     await $.session.start(session)
     await $.turn.complete(turn())
     await $.command.run(run('keepwarm', '3h'))
-    now += 50 * MIN
+    now += 30 * MIN
     // Ping A fires and pauses on its clock read.
     const releaseA = holdNextRead()
     timers.at(-1)?.()
@@ -1410,7 +1410,7 @@ describe('/clear overlapping /keepwarm', () => {
     expect(timers.length).toBe(beforeClearEnds)
     // The first turn of the new conversation starts the pings as usual.
     await $.turn.complete(turn())
-    now += 50 * MIN
+    now += 30 * MIN
     timers.at(-1)?.()
     await settle()
     expect(w.forks.length).toBe(1)
@@ -1426,16 +1426,16 @@ describe('always covers any break up to six hours', () => {
     const w = world(on, [{ read: 0, write: 200000 }, warm], { store })
     await $.session.start(session)
     await $.turn.complete(turn())
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.status.at(-1)).toMatch(/^keepwarm stopped: the ping read 0/)
     await $.turn.complete(turn())
-    expect(store.get('glitchband.deadline:S1')).toBe(START + 50 * MIN + 6 * HOUR)
-    await clock.advance(50 * MIN)
+    expect(store.get('glitchband.deadline:S1')).toBe(START + 30 * MIN + 6 * HOUR)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(2)
-    expect(w.status.at(-1)).toMatch(/ping in 50m · last ping read 200k/)
+    expect(w.status.at(-1)).toMatch(/ping in 30m · last ping read 200k/)
   })
 
-  test('a shorter window and a testing period give way to six hours at 50m on the next turn', async ($, on) => {
+  test('a shorter window and a testing period give way to six hours at 30m on the next turn', async ($, on) => {
     const clock = mockClock(on, { now: START })
     const store = alwaysOn()
     const w = world(on, [warm], { store })
@@ -1446,13 +1446,13 @@ describe('always covers any break up to six hours', () => {
     await $.turn.complete(turn())
     expect(store.get('glitchband.deadline:S1')).toBe(START + 6 * HOUR)
     expect(store.has('glitchband.every:S1')).toBe(false)
-    await clock.advance(49 * MIN)
+    await clock.advance(29 * MIN)
     expect(w.forks.length).toBe(0)
     await clock.advance(MIN)
     expect(w.forks.length).toBe(1)
   })
 
-  test('an expired window with a testing period rolls at 50m, not at its old period', async ($, on) => {
+  test('an expired window with a testing period rolls at 30m, not at its old period', async ($, on) => {
     let now = START
     on('clock.now', () => ({ value: now }))
     on('clock.after', () => new Promise<{ value: void }>(() => {}))
@@ -1466,7 +1466,7 @@ describe('always covers any break up to six hours', () => {
     await $.turn.complete(turn())
     expect(store.has('glitchband.every:S1')).toBe(false)
     expect(store.get('glitchband.deadline:S1')).toBe(now + 6 * HOUR)
-    expect(w.status.at(-1)).toBe('keepwarm 6h00m left · ping in 50m')
+    expect(w.status.at(-1)).toBe('keepwarm 6h00m left · ping in 30m')
   })
 
   test('the window rolls in the conversation after /clear too', async ($, on) => {
@@ -1542,7 +1542,7 @@ describe('always, from the PR review', () => {
     await $.session.start(session)
     await $.turn.complete(turn())
     const r = await $.command.run(run('keepwarm', '48h every 2m'))
-    expect(r.text).toMatch(/Always is on, so your next turn makes it at least 6h00m at one ping per 50m$/)
+    expect(r.text).toMatch(/Always is on, so your next turn makes it at least 6h00m at one ping per 30m$/)
     await $.turn.complete(turn())
     expect(store.get('glitchband.deadline:S1')).toBe(START + 48 * HOUR)
     expect(store.has('glitchband.every:S1')).toBe(false)
@@ -1570,7 +1570,7 @@ describe('always, from the PR review', () => {
     const before = w.forks.length
     await $.turn.complete(turn({ usage: undefined }))
     expect(store.has('glitchband.deadline:S1')).toBe(false)
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(before)
   })
 
@@ -1786,13 +1786,13 @@ describe('a managed plugin above the user tier', () => {
     await $.classic.SessionStart({ source: 'clear' })
     expect(store.has('glitchband.deadline:S1')).toBe(false)
     expect(w.status.at(-1)).toBe(undefined)
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(0)
     const card = (await $.command.run(run('glitchband', ''))).text
     expect(card).toMatch(/state       no request yet this session/)
     expect(card).toMatch(/session     0 cold writes paid/)
     await $.command.run(run('keepwarm', '2h'))
-    expect(store.get('glitchband.deadline:S2')).toBe(START + 4 * HOUR + 50 * MIN)
+    expect(store.get('glitchband.deadline:S2')).toBe(START + 4 * HOUR + 30 * MIN)
     expect(store.has('glitchband.deadline:S1')).toBe(false)
   })
 
@@ -1813,7 +1813,7 @@ describe('a managed plugin above the user tier', () => {
     expect(store.get('glitchband.deadline:S2')).toBe(START + 6 * HOUR)
     expect(w.status.at(-1)).toBe('keepwarm 6h00m left · waiting for the first turn')
     await $.turn.complete(turn())
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(1)
     expect(store.has('glitchband.deadline:S1')).toBe(false)
   })
@@ -1841,7 +1841,7 @@ describe('a managed plugin above the user tier', () => {
     await end($, 'S1')
     expect(store.get('glitchband.deadline:S2')).toBe(START + 6 * HOUR)
     await $.turn.complete(turn())
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(1)
   })
 
@@ -1939,9 +1939,9 @@ describe('a managed plugin above the user tier', () => {
     await $.session.start(session)
     await $.classic.SessionStart({ session_id: 'S1', source: 'startup' })
     await $.turn.complete(turn())
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(1)
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(2)
   })
 
@@ -2113,7 +2113,7 @@ describe('a managed plugin above the user tier', () => {
     expect(held.held()).toBe(1)
     sid = 'S2'
     // The old conversation's ping is due while its end is still waiting on the store; the transcript it would fork is gone.
-    await clock.advance(50 * MIN)
+    await clock.advance(30 * MIN)
     expect(w.forks.length).toBe(0)
     await $.prompt.submit(prompt('hi'))
     expect(store.get('glitchband.deadline:S2')).toBe(START + 3 * HOUR)
@@ -2188,7 +2188,7 @@ describe('a managed plugin above the user tier', () => {
 describe('a 5-minute cache', () => {
   const tail = JSON.stringify({ type: 'assistant', message: { usage: { cache_creation: { ephemeral_1h_input_tokens: 0, ephemeral_5m_input_tokens: 900 } } } })
 
-  test('pings shortly before it expires, not after 50 minutes', async ($, on) => {
+  test('pings halfway through its life, not after 30 minutes', async ($, on) => {
     const clock = mockClock(on, { now: START })
     const w = world(on, [warm])
     on('env.get', (_, e) => ({ value: e.name === 'HOME' ? '/home/u' : undefined }))
@@ -2198,7 +2198,7 @@ describe('a 5-minute cache', () => {
     await $.session.start({ ...session, surface: 'terminal', isInteractive: true })
     await $.turn.complete(turn())
     await $.command.run(run('keepwarm', '1h'))
-    await clock.advance(3 * MIN + 44 * 1000)
+    await clock.advance(2 * MIN + 29 * 1000)
     expect(w.forks.length).toBe(0)
     await clock.advance(1000)
     expect(w.forks.length).toBe(1)
@@ -2302,5 +2302,25 @@ describe('a bare /keepwarm always arms the window', () => {
     const zero = freshState({ window: 0 })
     zero.ttlMs = 0
     expect((await keepwarmCommand(zero, w.$, run('keepwarm', ''))).text).toMatch(ARMED)
+  })
+})
+
+describe('the ping period is half the cache lifetime', () => {
+  test('30 minutes for the 1-hour cache, 2m30s for the 5-minute one', () => {
+    expect(pingAfterMs(HOUR)).toBe(30 * MIN)
+    expect(pingAfterMs(5 * MIN)).toBe(2.5 * MIN)
+    expect(freshState().every).toBe(30 * MIN)
+  })
+
+  test('the first ping goes out 30 minutes after the last request, and says so', async ($, on) => {
+    const clock = mockClock(on, { now: START })
+    const w = world(on, [warm])
+    await $.session.start(session)
+    await $.turn.complete(turn())
+    expect((await $.command.run(run('keepwarm', ''))).text).toMatch(/a ping 30m after each idle stretch/)
+    await clock.advance(30 * MIN - 1000)
+    expect(w.forks.length).toBe(0)
+    await clock.advance(1000)
+    expect(w.forks.length).toBe(1)
   })
 })

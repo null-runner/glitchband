@@ -155,7 +155,7 @@ test('a ping in the last minute puts the glitch on the band mascot, and it clear
   })
   const mascot = async () => ((await band.findAll({ type: 'Svg' })).find(s => String(s.props.alt).startsWith('Netrunner'))?.props.source as string) ?? ''
   expect(await mascot()).not.toContain('class="m-glitch"')
-  await clock.advance(32.5 * 60 * 1000)
+  await clock.advance(12.5 * 60 * 1000)
   expect(await mascot()).toContain('class="m-glitch"')
   await clock.advance(PING_GLITCH_WINDOW_MS + 30_000)
   expect(await mascot()).not.toContain('class="m-glitch"')
