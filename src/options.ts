@@ -10,6 +10,8 @@ export type Options = {
   /** The window the button and a bare /keepwarm arm, as written ("6h") and in milliseconds. */
   keepwarmWindow: { text: string; ms: number }
   coldGuard: boolean
+  /** How long /keepwarm always holds a session warm after its last turn. */
+  alwaysHold: { text: string; ms: number }
   /** Context tokens from which the band offers a handoff to a fresh chat; 0 is off. */
   handoffAt: number
 }
@@ -36,6 +38,7 @@ export const readOptions = (raw: PluginOptions): Options => ({
   compactBelow: inRange(raw.compactBelow, COMPACT_RANGE) ? raw.compactBelow : DEFAULT_COMPACT_BELOW,
   cardScale: inRange(raw.cardScale, SCALE_RANGE) ? raw.cardScale : DEFAULT_CARD_SCALE,
   keepwarmWindow: windowOf(raw.keepwarmWindow),
+  alwaysHold: windowOf(raw.alwaysHold),
   coldGuard: raw.coldGuard !== false,
   handoffAt: inRange(raw.handoffAt, HANDOFF_RANGE) ? raw.handoffAt : DEFAULT_HANDOFF_AT,
 })

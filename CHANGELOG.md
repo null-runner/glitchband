@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- New option `alwaysHold`: how long `/keepwarm always` holds a session warm after its last turn (was fixed at 6h, now 6h by default, up to 48h), so a night away can stay warm.
+
 ## 0.3.0
 
 - Keepwarm pings at half the cache's lifetime: every 30 minutes for the 1-hour cache, every 2m30s for the 5-minute one (was 50 minutes and 75 s before expiry).

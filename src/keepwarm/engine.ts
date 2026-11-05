@@ -34,6 +34,8 @@ export type State = {
   deadline: number
   every: number
   always: boolean
+  /** How long always holds a session warm after its last turn, from the alwaysHold option. */
+  hold: number
   lastRequestAt: number
   lastModel: string | null
   ctx: number
@@ -366,7 +368,7 @@ export async function reseat($: EngineInterface, s: State) {
   // seated under the old id, and a window opened meanwhile waits in memory for the id it belongs to.
   if (id === s.endingSid) return
   const now = await seat($, s, id)
-  if (s.always) await startWindow($, s, DEFAULT_WINDOW_MS, pingAfterMs(s.ttlMs))
+  if (s.always) await startWindow($, s, s.hold, pingAfterMs(s.ttlMs))
   // A window carried over, or armed while the conversation was ending, is written under this id.
   else if (s.deadline) await startWindow($, s, s.deadline - now, s.every)
   else await publish($, s)
@@ -479,7 +481,7 @@ function afterRetries(n: number): string {
 
 /** How long keepwarm holds the cache after a paid cold write: the rolling window when always is on. */
 function holdMs(s: State): number {
-  return s.always ? DEFAULT_WINDOW_MS : AUTO_WARM_MS
+  return s.always ? s.hold : AUTO_WARM_MS
 }
 
 /** The reply to an arming command; on a cold cache it says when the first ping can come. */
@@ -513,9 +515,9 @@ export async function startWindow($: EngineInterface, s: State, windowMs: number
   await arm($, s)
 }
 
-export function freshState(options: { window?: number; guardOn?: boolean } = {}): State {
+export function freshState(options: { window?: number; guardOn?: boolean; hold?: number } = {}): State {
   return {
-    window: options.window ?? DEFAULT_WINDOW_MS, guardOn: options.guardOn ?? true,
+    window: options.window ?? DEFAULT_WINDOW_MS, guardOn: options.guardOn ?? true, hold: options.hold ?? DEFAULT_WINDOW_MS,
     sid: '', deadline: 0, every: pingAfterMs(TTL_MS), ttlMs: TTL_MS, ttlSeen: false, always: false, lastRequestAt: 0, lastModel: null, ctx: 0, compacted: false,
     resumedAt: 0, transcript: 0, guard: 'refuse', ackedAt: 0, coldWritePending: false, misses: [], pending: null, last: null, stopped: null,
     waitForTurn: false, retries: 0, retryReason: '', gen: 0, tick: 0, offs: 0, turnOffs: null, inFlight: false, stepWrites: null, steps: 0, endingSid: '', pings: 0, pingUsd: 0,
@@ -551,7 +553,7 @@ export async function sessionStart(s: State, $: EngineInterface, e: Ev<'session.
   s.guard = savedGuard === 'warn' ? 'warn' : 'refuse'
   s.always = (await $.store.get(KEY_ALWAYS)) === true
   // Always means a fresh default window every session, whatever the last one left behind.
-  if (s.always) await startWindow($, s, DEFAULT_WINDOW_MS, pingAfterMs(s.ttlMs))
+  if (s.always) await startWindow($, s, s.hold, pingAfterMs(s.ttlMs))
   // The classic start arms a restored window too, but a managed plugin above this tier may continue beneath it; arming twice leaves one timer.
   else if (s.deadline) await arm($, s)
   await publish($, s)
@@ -669,7 +671,7 @@ export async function turnComplete(s: State, $: EngineInterface, e: Ev<'turn.com
   if (e.usage) {
     const shared = (await $.store.get(KEY_ALWAYS)) === true
     if (s.offs === offs) s.always = shared
-    if (s.always) await startWindow($, s, Math.max(DEFAULT_WINDOW_MS, s.deadline - now), pingAfterMs(s.ttlMs), offs)
+    if (s.always) await startWindow($, s, Math.max(s.hold, s.deadline - now), pingAfterMs(s.ttlMs), offs)
   }
   const u = e.usage
   if (u) {

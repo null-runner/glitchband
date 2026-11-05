@@ -45,17 +45,19 @@ test('the defaults keep the behaviour the band has always had', () => {
     compactBelow: 110,
     cardScale: 1,
     keepwarmWindow: { text: '6h', ms: 6 * HOUR },
+    alwaysHold: { text: '6h', ms: 6 * HOUR },
     coldGuard: true,
     handoffAt: 600000,
   })
 })
 
 test('valid values are taken, a duration is normalised', () => {
-  expect(readOptions({ language: 'it', compactBelow: 90, cardScale: 2, keepwarmWindow: ' 2H30m ', coldGuard: false })).toEqual({
+  expect(readOptions({ language: 'it', compactBelow: 90, cardScale: 2, keepwarmWindow: ' 2H30m ', coldGuard: false, alwaysHold: '20H' })).toEqual({
     language: 'it',
     compactBelow: 90,
     cardScale: 2,
     keepwarmWindow: { text: '2h30m', ms: 150 * 60 * 1000 },
+    alwaysHold: { text: '20h', ms: 20 * HOUR },
     coldGuard: false,
     handoffAt: 600000,
   })

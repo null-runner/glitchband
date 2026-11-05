@@ -57,6 +57,7 @@ Set them in the plugin's configuration screen or under `pluginConfigs` in your s
 - `compactBelow`: columns under which the wide row drops the word "left" and folds keepwarm into its button. Default 110, from 40 to 400.
 - `cardScale`: how much larger the cache card's text reads. Default 1, from 0.5 to 3. Above 1 the wide card gets cramped on a desktop-width band.
 - `keepwarmWindow`: what the button and a bare `/keepwarm` arm, as hours and minutes. Default `6h`, from 1m to 48h.
+- `alwaysHold`: how long `/keepwarm always` keeps a session warm after its last turn. Default `6h`, up to `48h`. Each ping is a cache read, so past roughly 20 idle hours one cold re-write costs less than the pings; `20h` covers a night.
 - `coldGuard`: default on. Off lets a message sent on a cold cache through without holding it back.
 - `handoffAt`: context size in tokens from which the band offers Refresh. Default 600000, from 0 to 2000000; 0 turns it off.
 

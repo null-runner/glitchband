@@ -14,7 +14,7 @@ import { pull, setWindows } from '../src/usage/usage'
 
 export const register: Register = (on, raw) => {
   const options = readOptions(raw)
-  const kwState = freshState({ window: options.keepwarmWindow.ms, guardOn: options.coldGuard })
+  const kwState = freshState({ window: options.keepwarmWindow.ms, guardOn: options.coldGuard, hold: options.alwaysHold.ms })
   // An explicit language holds from the first draw; auto is resolved once the session starts.
   setLanguage(options.language === 'auto' ? 'en' : options.language)
 

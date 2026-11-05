@@ -53,9 +53,9 @@ export async function keepwarmCommand(s: State, $: EngineInterface, e: RunEvent)
   if (words[0] === 'always') {
     s.always = true
     await $.store.set(KEY_ALWAYS, true)
-    await startWindow($, s, DEFAULT_WINDOW_MS, pingAfterMs(s.ttlMs))
+    await startWindow($, s, s.hold, pingAfterMs(s.ttlMs))
     const cold = isCold(s, now) ? t('cmd.keepwarm.coldSuffix', { every: fmtDuration(s.every) }) : ''
-    return { text: t('cmd.keepwarm.always', { hold: fmtDuration(DEFAULT_WINDOW_MS), cold }) }
+    return { text: t('cmd.keepwarm.always', { hold: fmtDuration(s.hold), cold }) }
   }
   if (!words.length) {
     await startWindow($, s, s.window, pingAfterMs(s.ttlMs))
@@ -73,8 +73,8 @@ export async function keepwarmCommand(s: State, $: EngineInterface, e: RunEvent)
       every = period
     }
     await startWindow($, s, window, every)
-    const rolls = s.always && (window < DEFAULT_WINDOW_MS || every !== pingAfterMs(s.ttlMs))
-    return { text: armedText(s, now, window) + (rolls ? t('cmd.keepwarm.rolls', { hold: fmtDuration(DEFAULT_WINDOW_MS), every: fmtDuration(pingAfterMs(s.ttlMs)) }) : '') }
+    const rolls = s.always && (window < s.hold || every !== pingAfterMs(s.ttlMs))
+    return { text: armedText(s, now, window) + (rolls ? t('cmd.keepwarm.rolls', { hold: fmtDuration(s.hold), every: fmtDuration(pingAfterMs(s.ttlMs)) }) : '') }
   }
   return { text: statusText(s, now) ?? t('cmd.keepwarm.off') }
 }
@@ -96,7 +96,7 @@ function card(s: State, now: number, handoffAt: number): string {
   lines.push(
     s.deadline ? t('cmd.keepwarm.on', { body: leftText(s, now), always })
       : s.stopped ? t('cmd.keepwarm.stopped', { why: s.stopped, always })
-      : s.always ? t('cmd.keepwarm.idleAlways', { window: fmtDuration(DEFAULT_WINDOW_MS) })
+      : s.always ? t('cmd.keepwarm.idleAlways', { window: fmtDuration(s.hold) })
       : t('cmd.keepwarm.idle', { window: fmtDuration(s.window) }),
   )
   const pings = breakEvenPings(s)

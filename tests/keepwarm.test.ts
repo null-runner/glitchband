@@ -464,6 +464,19 @@ describe('keepwarm', () => {
     await band.unmount()
   })
 
+  test('alwaysHold sets how long always keeps a session warm after its last turn', { options: { alwaysHold: '20h' } }, async ($, on) => {
+    const clock = mockClock(on, { now: START })
+    const store = new Map<string, unknown>([['glitchband.always', true]])
+    const w = world(on, Array.from({ length: 40 }, () => warm), { store })
+    await $.session.start(session)
+    await $.turn.complete(turn())
+    expect(store.get('glitchband.deadline:S1')).toBe(START + 20 * HOUR)
+    await clock.advance(10 * HOUR)
+    const sent = w.forks.length
+    await clock.advance(31 * MIN)
+    expect(w.forks.length).toBe(sent + 1)
+  })
+
   test('always is remembered, arms every session start, and off ends it for good', async ($, on) => {
     const clock = mockClock(on, { now: START })
     const store = new Map<string, unknown>([['glitchband.always', true], ['glitchband.deadline:S1', START - MIN], ['glitchband.every:S1', MIN]])
